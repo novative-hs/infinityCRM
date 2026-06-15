@@ -1,0 +1,35 @@
+# Dependencies
+/vendor/
+
+# Environment
+.env
+
+# Logs
+writable/logs/*
+
+# Cache
+writable/cache/*
+
+# Session files
+writable/session/*
+
+# Debug toolbar
+writable/debugbar/*
+
+# Uploads (optional)
+writable/uploads/*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Node modules (if frontend assets exist)
+node_modules/
+
+# Build files
+dist/
+build/
