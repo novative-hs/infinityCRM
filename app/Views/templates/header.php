@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
   <style>
-    body { background-color: #80a4b9; }
+    body { background-color: #fff; }
     .navbar { background-color: #134557; overflow: hidden; }
     .card-body { background-color: #134557; }
     .input-light { background-color: #eef2f7 !important; border: none !important; }
