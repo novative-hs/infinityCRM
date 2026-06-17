@@ -62,7 +62,7 @@
       </div>
     </div>
   </div>
-
+  <div class="table-responsive">
   <!-- Leads Table -->
   <div class="leads-table">
     <table class="table table-borderless mb-0">
@@ -99,7 +99,7 @@
           <td><span class="status-badge phlebotomist">Phlebotomist Assigned</span></td>
           <td><div class="eta-val">Jun 16, 2026 3:00 PM</div></td>
           <td><div class="date-val">Jun 15, 7:13 PM</div></td>
-          <td><a href="labDashboard/sample-collected/1" class="btn-view">View &amp; Update <i class="bi bi-arrow-right"></i></a></td>
+          <td><a href="sample_collected/1" class="btn-view">View &amp; Update <i class="bi bi-arrow-right"></i></a></td>
         </tr>
 
         <tr>
@@ -175,7 +175,7 @@
       </tbody>
     </table>
   </div>
-
+  </div>
 </div>
 
 <script>
