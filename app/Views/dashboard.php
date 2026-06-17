@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?= view('templates/header', ['pageTitle' => 'Dashboard', 'activePage' => 'dashboard']) ?>
 
   <div class="flex-grow-1 d-flex align-items-center justify-content-center">
@@ -17,14 +16,3 @@
   </div>
 
 <?= view('templates/footer') ?>
-=======
-<!DOCTYPE html>
-<html>
-<head><title>Dashboard</title></head>
-<body style="background:#0f1923; color:#fff; font-family:sans-serif; padding:2rem;">
-  <h1>Welcome, <?= session()->get('user_name') ?> 👋</h1>
-  <p>Role: <?= session()->get('user_role') ?></p>
-  <a href="<?= base_url('auth/logout') ?>" style="color:#1d9e75;">Logout</a>
-</body>
-</html>
->>>>>>> 851e8f62f279c469df2a38736bcf344049c76941

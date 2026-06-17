@@ -3,7 +3,7 @@
 namespace App\Controllers;
 use Config\Database;
 use App\Models\UserModel;
-use App\Models\TestModel;
+use App\Models\LabTestModel;
 use App\Models\PatientModel;
 use App\Models\PatientTestBookingModel;
 
@@ -13,7 +13,7 @@ class BookingController extends BaseController
     
     public function index()
     {
-         $testModel = new TestModel();
+         $testModel = new LabTestModel();
  
         $data = [
             'tests'   => $testModel->orderBy('test_name', 'ASC')->findAll(),
@@ -39,7 +39,6 @@ class BookingController extends BaseController
         }
  
         $tests = $this->request->getPost('tests') ?? [];
- 
 
         log_message('debug', 'Raw tests payload: ' . json_encode($tests));
  
@@ -101,7 +100,7 @@ class BookingController extends BaseController
         $rows = array_map(static function (array $row) use ($patientId, $now) {
             return [
                 'fk_patient_id'    => $patientId,
-                'fk_test_id'       => $row['fk_test_id'],
+                'fk_lab_id'       => $row['fk_test_id'],
                 'status'           => 'In Process',
                 'discount_percent' => $row['discount_percent'],
                 'paid_status'      => $row['paid_status'],
@@ -109,7 +108,7 @@ class BookingController extends BaseController
                 'date_updated'     => $now,
             ];
         }, $cleanRows);
- 
+
         $bookingModel = new PatientTestBookingModel();
         $inserted = $bookingModel->insertBatch($rows);
  

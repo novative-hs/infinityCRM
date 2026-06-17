@@ -1,7 +1,13 @@
 <?= view('templates/header', ['pageTitle' => 'Lab List', 'activePage' => 'lablist']) ?>
 
 <div class="container-fluid px-4 py-4">
-
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    
+   <a class="nav-link text-black d-flex align-items-center gap-1" href="<?= base_url('booking/new') ?>">
+          New Booking
+            </a>
+  </div>
   <!-- Stat Cards -->
   <div class="d-flex gap-3 mb-4 flex-wrap">
     <div class="stat-card">

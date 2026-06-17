@@ -4,9 +4,9 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class TestModel extends Model
+class LABTestModel extends Model
 {
-    protected $table            = 'tests';
+    protected $table            = 'lab_tests';
     protected $primaryKey       = 'id';
     protected $allowedFields    = ['code', 'test_name', 'rate', 'sample', 'reporting_time'];
 

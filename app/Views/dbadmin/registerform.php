@@ -11,7 +11,7 @@
 <style>
   /* page-specific styles that aren't already in templates/header.php */
   .register-card-body {
-    background-color: #d1d3d3ab;
+    background-color: #fff;
   }
   .form-label {
     color: #1c4f63;
@@ -19,16 +19,16 @@
 </style>
 
 <div class="flex-grow-1 d-flex align-items-center justify-content-center py-4">
-  <div class="card register-card border-0 p-5" style="width:100%; max-width:900px; background-color:#fff;">
+  <div class="card register-card border-0 p-5" style="width:100%; max-width:900px; background-color:#134557;">
 
     <!-- Top header -->
     <div class="d-flex flex-column text-black align-items-center text-center px-4 pt-2 pb-3">
       <div class="rounded-circle d-flex align-items-center justify-content-center mb-3"
-           style="width:56px; height:56px; background:#134557;">
-        <i class="ti ti-flask text-white fs-3"></i>
+           style="width:56px; height:56px; background:#fff;">
+        <i class="ti ti-flask text-primary fs-3"></i>
       </div>
-      <span class="fs-4 fw-bold" style="color:#134557;">Health CRM</span>
-      <small class="mt-1" style="color:#134557;">Lab Registration Form</small>
+      <span class="fs-4 fw-bold" style="color:#fff;">Health CRM</span>
+      <small class="mt-1" style="color:#fff;">Lab Registration Form</small>
     </div>
 
     <!-- Form section -->
@@ -52,7 +52,7 @@
         </div>
       <?php endif; ?>
 
-      <form action="<?= base_url('users/store') ?>" method="POST">
+      <form action="<?= base_url('labs/store') ?>" method="POST">
         <?= csrf_field() ?>
 
         <div class="row">

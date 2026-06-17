@@ -8,9 +8,9 @@ class UserModel extends Model
 {
     protected $table         = 'users';
     protected $primaryKey    = 'id';
-    protected $useTimestamps = true;
+    protected $useTimestamps = false;
     protected $allowedFields = [
-        'name', 'email', 'password', 'role', 'status'
+        'name', 'email', 'password', 'password_hint', 'role', 'status', 'created_at'
     ];
 
     protected $validationRules = [
@@ -21,9 +21,7 @@ class UserModel extends Model
     ];
 
     protected $validationMessages = [
-        'email' => [
-            'is_unique' => 'This email is already registered.',
-        ],
+        'email' => ['is_unique' => 'This email is already registered.'],
     ];
 
     public function getUserByEmail($email)
@@ -35,7 +33,9 @@ class UserModel extends Model
 
     public function createUser($data)
     {
-        $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        $data['password_hint'] = $data['password'];
+        $data['password']      = password_hash($data['password'], PASSWORD_DEFAULT);
+        $data['created_at']    = date('Y-m-d H:i:s');
         return $this->insert($data);
     }
 }
