@@ -4,10 +4,10 @@ $genders = $genders ?? ['Male', 'Female', 'Other'];
 
 
 $tests = $tests ?? [
-    ['id' => 1, 'code' => '1207', 'test_name' => 'Semen Analysis', 'rate' => 3000],
-    ['id' => 2, 'code' => '2352', 'test_name' => '5 HIAA (24 Hrs Urine)', 'rate' => 4800],
-    ['id' => 3, 'code' => '5050', 'test_name' => 'Complete Blood Count (CBC)', 'rate' => 1200],
-    ['id' => 4, 'code' => '1090', 'test_name' => 'Fasting Blood Glucose', 'rate' => 600],
+    ['id' => 1, 'test_code' => '1207', 'test_name' => 'Semen Analysis', 'rate' => 3000],
+    ['id' => 2, 'test_code' => '2352', 'test_name' => '5 HIAA (24 Hrs Urine)', 'rate' => 4800],
+    ['id' => 3, 'test_code' => '5050', 'test_name' => 'Complete Blood Count (CBC)', 'rate' => 1200],
+    ['id' => 4, 'test_code' => '1090', 'test_name' => 'Fasting Blood Glucose', 'rate' => 600],
 ];
 ?>
 <!DOCTYPE html>
@@ -201,7 +201,7 @@ document.getElementById('patient_name').addEventListener('input', function () {
   const searchDropdown = document.getElementById('search_dropdown');
   const allTests = <?= json_encode(array_map(fn($t) => [
       'id'    => $t['id'],
-      'code'  => $t['code'],
+      'test_code'  => $t['test_code'],
       'name'  => $t['test_name'],
       'price' => (float) $t['rate'],
   ], $tests), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
@@ -302,7 +302,7 @@ document.getElementById('patient_name').addEventListener('input', function () {
     recalcTotals();
   }
 
-  function addTestRow(name, code, price, testId) {
+  function addTestRow(name, test_code, price, testId) {
     if (!name) return;
     rowCounter++;
 
@@ -314,7 +314,7 @@ document.getElementById('patient_name').addEventListener('input', function () {
     row.innerHTML = `
       <div class="d-flex justify-content-between align-items-start">
         <div>
-          <span class="text-muted small me-2">${code || ''}</span>
+          <span class="text-muted small me-2">${test_code || ''}</span>
           <span class="fw-semibold">${name}</span>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -341,7 +341,7 @@ document.getElementById('patient_name').addEventListener('input', function () {
         </div>
       </div>
       <input type="hidden" name="tests[${rowCounter}][test_id]" value="${testId || ''}">
-      <input type="hidden" name="tests[${rowCounter}][code]" value="${code || ''}">
+      <input type="hidden" name="tests[${rowCounter}][test_code]" value="${test_code || ''}">
       <input type="hidden" name="tests[${rowCounter}][name]" value="${name}">
       <input type="hidden" name="tests[${rowCounter}][price]" value="${price}">
       <input type="hidden" class="payment-input" name="tests[${rowCounter}][payment]" value="prepaid">
@@ -379,7 +379,7 @@ document.getElementById('patient_name').addEventListener('input', function () {
 
     const discount = parseFloat(defaultDiscountInput.value || 0);
     const matches = allTests
-      .filter(t => t.name.toLowerCase().includes(q) || String(t.code).toLowerCase().includes(q))
+      .filter(t => t.name.toLowerCase().includes(q) || String(t.test_code).toLowerCase().includes(q))
       .slice(0, 30);
 
     if (matches.length === 0) {
@@ -393,10 +393,10 @@ document.getElementById('patient_name').addEventListener('input', function () {
       const savings = t.price - final;
       return `
         <div class="d-flex justify-content-between align-items-start p-3 border-bottom search-result-item"
-             role="button" data-id="${t.id}" data-code="${t.code}" data-name="${t.name}" data-price="${t.price}">
+             role="button" data-id="${t.id}" data-code="${t.test_code}" data-name="${t.name}" data-price="${t.price}">
           <div>
             <span class="fw-semibold">${t.name}</span>
-            <span class="text-muted small ms-2">${t.code}</span>
+            <span class="text-muted small ms-2">${t.test_code}</span>
           </div>
           <div class="text-end">
             ${savings > 0 ? `<div class="text-muted text-decoration-line-through small">${fmt(t.price)}</div>` : ''}
