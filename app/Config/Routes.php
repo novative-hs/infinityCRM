@@ -18,3 +18,8 @@ $routes->get('/users/create', 'UserController::create');
 $routes->post('/users/store', 'UserController::store');
 $routes->get('/lablist', 'UserController::labList');
 $routes->get('/registerform', 'UserController::registerForm');
+
+
+
+$routes->get('/dbadmin/dashboard', 'AdminController::dashboard');
+$routes->get('/labDashboard/dashboard',     'LabController::dashboard');
