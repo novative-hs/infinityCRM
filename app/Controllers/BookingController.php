@@ -118,7 +118,7 @@ class BookingController extends BaseController
             return redirect()->back()->withInput()->with('error', 'Could not save the test bookings.');
         }
  
-        return redirect()->to(site_url('dashboard'))
+        return redirect()->to(site_url('/labDashboard/dashboard'))
             ->with('success', count($rows) . ' test(s) booked successfully.');
     }
 }
