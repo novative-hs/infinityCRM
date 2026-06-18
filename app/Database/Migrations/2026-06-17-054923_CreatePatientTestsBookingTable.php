@@ -28,6 +28,12 @@ class CreatePatientTestsBookingTable extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
+            'phleb_id' => [
+                // References tests.id (the tests table already exists).
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'status' => [
                 // Matches the status pills used on the Lab Partner Dashboard.
                 'type'       => 'ENUM',
@@ -58,7 +64,7 @@ class CreatePatientTestsBookingTable extends Migration
              'payment_status' => [
                 'type'       => 'ENUM',
                 'constraint' => ['paid', 'unpaid'],
-                'default'    => 'prepaid',
+                'default'    => 'unpaid',
             ],
              'payment_date' => [
                 'type' => 'DATETIME',
@@ -77,6 +83,8 @@ class CreatePatientTestsBookingTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('fk_patient_id');
         $this->forge->addKey('fk_lab_id');
+        $this->forge->addKey('phleb_id');
+        
 
         // Enabled now since tests already exists.
         // onUpdate CASCADE keeps things in sync if a test's id ever changes;

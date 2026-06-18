@@ -186,6 +186,50 @@
     </div>
 
     <!-- Action Buttons -->
+     <?php if ($currentStatus === 'In Process'): ?>
+  <button class="action-btn blue" id="assignBtn" onclick="document.getElementById('assignForm').style.display='block'; this.style.display='none';">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+    Assign Phlebotomist
+  </button>
+
+  <div id="assignForm" style="display:none; margin-top:16px; background:#f0f7ff; border:1px solid #bfdbfe; border-radius:12px; padding:20px;">
+    <div style="font-size:.88rem; font-weight:700; color:#1e40af; margin-bottom:14px;">Phlebotomist Details</div>
+    <form action="<?= base_url('booking/assignPhlebotomist/' . $bookingId) ?>" method="post">
+      <?= csrf_field() ?>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+            Phlebotomist Name <span style="color:red">*</span>
+          </label>
+          <select name="phleb_id" required style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
+            <option value="">— Select —</option>
+            <?php foreach ($phlebotomists as $p): ?>
+              <option value="<?= $p['id'] ?>"><?= esc($p['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">ETA (optional)</label>
+          <input type="datetime-local" name="eta" style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827;">
+        </div>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button type="submit" class="action-btn blue" style="margin-top:0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          Confirm Assignment
+        </button>
+        <button type="button" class="action-btn" style="margin-top:0; background:#e5e7eb; color:#374151;"
+          onclick="document.getElementById('assignForm').style.display='none'; document.getElementById('assignBtn').style.display='inline-flex';">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+<?php endif; ?>
     <?php if ($currentStatus === 'Phlebotomist Assigned'): ?>
       <a href="<?= base_url('booking/status/' . $latestBooking['id'] . '/arrived') ?>" class="action-btn blue">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -337,23 +381,36 @@ if ($currentStatus === 'Sample Collected'):
         View on Map
       </a>
     <?php endif; ?>
-    <?php if (!empty($patient['instructions'])): ?>
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:10px;">
-        <div>
-          <div class="notes-label">NOTES / INSTRUCTIONS</div>
-          <div class="notes-val"><?= esc($patient['instructions']) ?></div>
-        </div>
-        <a href="#" class="edit-link">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Edit
-        </a>
+   <div style="margin-top:10px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <div class="notes-label">NOTES / INSTRUCTIONS</div>
+    <a href="#" class="edit-link" id="editNotesBtn" onclick="document.getElementById('notesDisplay').style.display='none'; document.getElementById('notesForm').style.display='block'; this.style.display='none'; return false;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit
+    </a>
+  </div>
+  <div id="notesDisplay">
+    <div class="notes-val"><?= esc($patient['instructions']) ?></div>
+  </div>
+  <div id="notesForm" style="display:none;">
+    <form action="<?= base_url('booking/saveNotes/' . $patient['id']) ?>" method="post">
+      <?= csrf_field() ?>
+      <textarea name="instructions" style="width:100%; padding:10px; border:1px solid #fde68a; border-radius:8px; font-size:.88rem; color:#374151; background:#fff; min-height:80px; resize:vertical;"><?= esc($patient['instructions']) ?></textarea>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="submit" style="background:#d97706; color:#fff; border:none; padding:8px 18px; border-radius:8px; font-size:.82rem; font-weight:600; cursor:pointer;">Save Notes</button>
+        <button type="button" style="background:#e5e7eb; color:#374151; border:none; padding:8px 14px; border-radius:8px; font-size:.82rem; cursor:pointer;"
+          onclick="document.getElementById('notesForm').style.display='none'; document.getElementById('notesDisplay').style.display='block'; document.getElementById('editNotesBtn').style.display='flex';">
+          Cancel
+        </button>
       </div>
-    <?php endif; ?>
+    </form>
+  </div>
+</div>
   </div>
   <?php endif; ?>
 
   <!-- Phlebotomist (show only if assigned) -->
-  <?php if (!empty($latestBooking['fk_phlebotomist_id']) || $currentStatus === 'Phlebotomist Assigned'): ?>
+ <?php if (!empty($latestBooking['phleb_id'])): ?>
   <div class="phleb-card">
     <div class="phleb-title">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -362,7 +419,7 @@ if ($currentStatus === 'Sample Collected'):
     <div class="phleb-grid">
       <div>
         <div class="phleb-label">Name</div>
-        <div class="phleb-val"><?= esc($latestBooking['phlebotomist_name'] ?? 'Assigned') ?></div>
+       <div class="phleb-val"><?= esc($latestBooking['phleb_name'] ?? '—') ?></div>
       </div>
       <?php if (!empty($latestBooking['eta'])): ?>
       <div>

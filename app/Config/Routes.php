@@ -35,7 +35,7 @@ $routes->post('/labs/(:num)/pricelist', 'LabController::importPriceList/$1');
 $routes->get('/labDashboard/dashboard', 'BookingController::dashboard');
 $routes->get('/booking/view/(:num)', 'BookingController::viewBooking/$1');
 
-// Invoice routes
+$routes->post('booking/assignPhlebotomist/(:num)', 'BookingController::assignPhlebotomist/$1');
 // Booking routes
 $routes->get('booking/invoice/(:num)', 'BookingController::viewInvoice/$1');
 $routes->get('booking/sharedInvoice/(:num)/(:any)', 'BookingController::sharedInvoice/$1/$2');
@@ -45,3 +45,5 @@ $routes->post('booking/regenerateShareLink/(:num)', 'BookingController::regenera
  $routes->post('booking/uploadReport/(:num)', 'BookingController::uploadReport/$1');
  
 $routes->post('booking/markPaymentPaid/(:num)', 'BookingController::markPaymentPaid/$1');
+
+$routes->post('booking/saveNotes/(:num)', 'BookingController::saveNotes/$1');

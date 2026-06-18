@@ -16,7 +16,8 @@ class PatientTestBookingModel extends Model
         'discount_percent',
         'payment_method',
         'payment_status',
-        'payment_date'
+        'payment_date',
+        'phleb_id',
     ];
 
     protected $returnType    = 'array';
