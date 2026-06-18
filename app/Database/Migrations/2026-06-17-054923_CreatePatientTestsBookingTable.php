@@ -50,10 +50,19 @@ class CreatePatientTestsBookingTable extends Migration
                 'constraint' => '11',
                  'unsigned'   => true,
             ],
-            'paid_status' => [
+            'payment_method' => [
                 'type'       => 'ENUM',
                 'constraint' => ['cash', 'prepaid'],
                 'default'    => 'prepaid',
+            ],
+             'payment_status' => [
+                'type'       => 'ENUM',
+                'constraint' => ['paid', 'unpaid'],
+                'default'    => 'prepaid',
+            ],
+             'payment_date' => [
+                'type' => 'DATETIME',
+                'null' => true,
             ],
             'date_created' => [
                 'type' => 'DATETIME',
