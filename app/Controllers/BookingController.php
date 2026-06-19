@@ -7,26 +7,37 @@ use App\Models\UserModel;
 use App\Models\LabTestModel;
 use App\Models\PatientModel;
 use App\Models\PatientTestBookingModel;
-
+use CodeIgniter\HTTP\RedirectResponse;
 
 class BookingController extends BaseController
 {
+    private function getLabId(): ?int
+    {
+        $db = \Config\Database::connect();
+        $userId = session()->get('user_id') ?? session()->get('id');
 
+        $lab = $db->table('labs')
+            ->where('user_id', $userId)
+            ->get()->getRowArray();
+
+        return $lab ? (int)$lab['id'] : null;
+    }
     public function index()
     {
         $testModel = new LabTestModel();
-
         $data = [
-            'tests'   => $testModel->orderBy('test_name', 'ASC')->findAll(),
+            'tests'   => $testModel->getTestsBySessionLab(),
             'genders' => ['Male', 'Female', 'Other'],
         ];
         return view('Booking/bookingform', $data);
     }
 
- public function add_booking()
+    public function add_booking()
     {
-
-    $rules = [
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+        $rules = [
             'patient_name' => 'required|regex_match[/^[A-Za-z\s]+$/]',
             'phone_number' => 'required|max_length[20]',
             'home_address' => 'required',
@@ -38,44 +49,44 @@ class BookingController extends BaseController
         if (! $this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
- 
+
         $tests = $this->request->getPost('tests') ?? [];
 
         log_message('debug', 'Raw tests payload: ' . json_encode($tests));
- 
+
 
         $cleanRows = [];
-        
+
         foreach ($tests as $t) {
             $testId   = (int) ($t['test_id'] ?? 0);
             $discount = (int) ($t['discount'] ?? 0);
             $payment  = $t['payment'] ?? 'prepaid';
- 
+
             if ($testId <= 0) {
-                continue; 
+                continue;
             }
             if ($discount < 0 || $discount > 100) {
-                $discount = 0; 
+                $discount = 0;
             }
             if (! in_array($payment, ['cash', 'prepaid'], true)) {
                 $payment = 'prepaid';
             }
- 
+
             $cleanRows[] = [
                 'fk_test_id'       => $testId,
                 'discount_percent' => $discount,
                 'payment_method'      => $payment,
             ];
         }
- 
+
         if (empty($cleanRows)) {
             log_message('debug', 'cleanRows ended up empty — every test row was missing a valid test_id.');
             return redirect()->back()->withInput()->with('error', 'Please add at least one valid test.');
         }
- 
-       
+
+
         $patientModel = new PatientModel();
- 
+
         $patientId = $patientModel->insert([
             'patient_name'         => $this->request->getPost('patient_name'),
             'phone_number'        => $this->request->getPost('phone_number'),
@@ -84,18 +95,18 @@ class BookingController extends BaseController
             'home_address'      => $this->request->getPost('home_address'),
             'pin_location' => $this->request->getPost('pin_location'),
             'instructions' => $this->request->getPost('instructions'),
-        ], true); 
- 
+        ], true);
+
         if (! $patientId) {
-            
-        
+
+
             $modelErrors = $patientModel->errors();
             return redirect()->back()->withInput()->with(
                 'errors',
                 $modelErrors ?: ['patient' => 'Could not save patient details.']
             );
         }
- 
+
 
         $now  = date('Y-m-d H:i:s');
         $rows = array_map(static function (array $row) use ($patientId, $now) {
@@ -104,8 +115,8 @@ class BookingController extends BaseController
                 'fk_test_id'       => $row['fk_test_id'],
                 'status'           => 'In Process',
                 'discount_percent' => $row['discount_percent'],
-                 'payment_method'   => $row['payment_method'],  
-        'payment_status'   => 'unpaid',
+                'payment_method'   => $row['payment_method'],
+                'payment_status'   => 'unpaid',
                 'date_created'     => $now,
                 'date_updated'     => $now,
             ];
@@ -113,13 +124,20 @@ class BookingController extends BaseController
 
         $bookingModel = new PatientTestBookingModel();
         $inserted = $bookingModel->insertBatch($rows);
- 
+
         if ($inserted === false) {
             log_message('error', 'lab_bookings insertBatch failed: ' . json_encode($bookingModel->errors()));
             log_message('error', 'Last DB error: ' . json_encode(\Config\Database::connect()->error()));
             return redirect()->back()->withInput()->with('error', 'Could not save the test bookings.');
         }
- 
+        $db = \Config\Database::connect();
+       $firstRow = $insertedIds[0];
+$this->logStatusHistory(
+    $firstRow['id'],
+    $patientId,
+    'In Process',
+    'Booking created'
+);
         return redirect()->to(site_url('labDashboard/dashboard'))
             ->with('success', count($rows) . ' test(s) booked successfully.');
     }
@@ -130,6 +148,8 @@ class BookingController extends BaseController
             return redirect()->to('/login');
         }
 
+        $labId = $this->getLabId(); // ← use helper
+
         $model = new \App\Models\PatientTestBookingModel();
         $bookings = [];
         $counts = ['total' => 0, 'in_process' => 0, 'assigned' => 0, 'arrived' => 0, 'collected' => 0, 'report_ready' => 0];
@@ -139,13 +159,14 @@ class BookingController extends BaseController
             'search'    => $this->request->getGet('search'),
             'date_from' => $this->request->getGet('date_from'),
             'date_to'   => $this->request->getGet('date_to'),
+            'lab_id'    => $labId,  // ← from helper
         ];
 
         try {
             $db = \Config\Database::connect();
             if ($db->tableExists('patient_test_bookings')) {
                 $bookings = $model->getFilteredBookings($filters);
-                $counts   = $model->getStatusCounts();
+                $counts   = $model->getStatusCounts($labId);  // ← from helper
                 $model->attachTestDetails($bookings);
             }
         } catch (\Exception $e) {
@@ -163,20 +184,24 @@ class BookingController extends BaseController
 
         $db = \Config\Database::connect();
 
+        // Get lab_id FIRST — needed for both queries below
+        $labId = $this->getLabId(); // ← one line instead of 6
+
         // Get patient
         $patient = $db->table('patients')->where('id', $patientId)->get()->getRowArray();
         if (!$patient) {
             return redirect()->to('/labDashboard/dashboard')->with('error', 'Patient not found.');
         }
 
-        // Get all bookings for this patient (each row = one test)
-       $bookingRows = $db->table('patient_test_bookings ptb')
-    ->select('ptb.*, lt.test_code, lt.test_name, lt.rate, lt.reporting_time, ph.name as phleb_name')
-    ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
-    ->join('phlebotomists ph', 'ph.id = ptb.phleb_id', 'left')
-    ->where('ptb.fk_patient_id', $patientId)
-    ->orderBy('ptb.date_created', 'ASC')
-    ->get()->getResultArray();
+        // Get all bookings for this patient filtered by lab
+        $bookingRows = $db->table('patient_test_bookings ptb')
+            ->select('ptb.*, lt.test_code, lt.test_name, lt.rate, lt.reporting_time, ph.name as phleb_name')
+            ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+            ->join('phlebotomists ph', 'ph.id = ptb.phleb_id', 'left')
+            ->where('ptb.fk_patient_id', $patientId)
+            ->where('lt.lab_id', $labId)
+            ->orderBy('ptb.date_created', 'ASC')
+            ->get()->getResultArray();
 
         if (empty($bookingRows)) {
             return redirect()->to('/labDashboard/dashboard')->with('error', 'No bookings found.');
@@ -185,11 +210,15 @@ class BookingController extends BaseController
         // Use the latest booking row for status/eta/meta
         $latestBooking = end($bookingRows);
         $currentStatus = $latestBooking['status'];
-        $bookingId = $latestBooking['id']; // ← ADD THIS LINE
+        $bookingId     = $latestBooking['id'];
 
         // Status steps
-        $statusSteps = ['In Process', 'Phlebotomist Assigned', 'Arrived', 'Sample Collected', 'Report Ready'];
+        $statusSteps    = ['In Process', 'Phlebotomist Assigned', 'Arrived', 'Sample Collected', 'Report Ready'];
         $currentStepIdx = array_search($currentStatus, $statusSteps);
+        if ($currentStepIdx === false) {
+    // For refused, highlight up to "Arrived" (where it was refused)
+    $currentStepIdx = $currentStatus === 'Patient Refused' ? 2 : 0;
+}
         if ($currentStepIdx === false) $currentStepIdx = 0;
 
         // Build tests ordered with financials
@@ -199,9 +228,9 @@ class BookingController extends BaseController
         $testsOrdered  = [];
 
         foreach ($bookingRows as $row) {
-            $rate        = (float)($row['rate'] ?? 0);
-            $discPct     = (float)($row['discount_percent'] ?? 0);
-            $discAmt     = round($rate * $discPct / 100);
+            $rate         = (float)($row['rate'] ?? 0);
+            $discPct      = (float)($row['discount_percent'] ?? 0);
+            $discAmt      = round($rate * $discPct / 100);
             $patientPrice = $rate - $discAmt;
 
             $originalTotal += $rate;
@@ -221,13 +250,10 @@ class BookingController extends BaseController
         }
 
         // Status history
-        $statusHistory = [];
-        $statusHistory[] = [
-            'status'     => 'In Process',
-            'changed_at' => $bookingRows[0]['date_created'] ?? date('Y-m-d H:i:s'),
-        ];
+      // Pull real history from DB
+$historyModel  = new \App\Models\BookingStatusHistoryModel();
+$statusHistory = $historyModel->getHistoryForPatient($patientId);
 
-        // Only add current status if it's different from 'In Process'
         if ($currentStatus !== 'In Process') {
             $statusHistory[] = [
                 'status'     => $currentStatus,
@@ -235,28 +261,33 @@ class BookingController extends BaseController
             ];
         }
 
-    // Fetch phlebotomists for dropdown
-$phlebotomists = $db->table('phlebotomists')->orderBy('name', 'ASC')->get()->getResultArray();
+        // Phlebotomists for this lab only
+        $phlebotomists = $labId
+            ? $db->table('phlebotomists')
+            ->where('lab_id', $labId)
+            ->where('status', 'active')
+            ->orderBy('name', 'ASC')
+            ->get()->getResultArray()
+            : [];
 
-$data = compact(
-    'patient',
-    'latestBooking',
-    'currentStatus',
-    'statusSteps',
-    'currentStepIdx',
-    'testsOrdered',
-    'originalTotal',
-    'discountTotal',
-    'patientPays',
-    'statusHistory',
-    'bookingId',
-    'phlebotomists'   // ← add this
-);
+        $data = compact(
+            'patient',
+            'latestBooking',
+            'currentStatus',
+            'statusSteps',
+            'currentStepIdx',
+            'testsOrdered',
+            'originalTotal',
+            'discountTotal',
+            'patientPays',
+            'statusHistory',
+            'bookingId',
+            'phlebotomists'
+        );
 
         return view('labDashboard/booking_details', $data);
     }
-    // Add this method to your BookingController class
-public function assignPhlebotomist($bookingId = null)
+ public function assignPhlebotomist($bookingId = null)
 {
     if (!session()->get('logged_in')) {
         return redirect()->to('/login');
@@ -283,7 +314,7 @@ public function assignPhlebotomist($bookingId = null)
         return redirect()->back()->with('error', 'Booking not found.');
     }
 
-    // Update ALL rows for this patient (in case multiple tests)
+    // ← THIS was missing — actually update the status
     $db->table('patient_test_bookings')
         ->where('fk_patient_id', $booking['fk_patient_id'])
         ->update([
@@ -293,96 +324,117 @@ public function assignPhlebotomist($bookingId = null)
             'date_updated' => date('Y-m-d H:i:s'),
         ]);
 
+  $this->logStatusHistory(
+    $booking['id'],
+    $booking['fk_patient_id'],
+    'Phlebotomist Assigned',
+    'Phlebotomist assigned'
+);
+
     return redirect()->to('/booking/view/' . $booking['fk_patient_id'])
         ->with('success', 'Phlebotomist assigned successfully!');
 }
-    public function updateStatus($bookingId = null, $action = null)
-    {
-        // Check if user is logged in
-        if (!session()->get('logged_in')) {
-            return redirect()->to('/login')->with('error', 'Please login to perform this action');
-        }
-
-        // Validate booking ID
-        if (!$bookingId) {
-            return redirect()->back()->with('error', 'Invalid booking ID');
-        }
-
-        // Define valid actions and their corresponding statuses
-        $statusMap = [
-            'arrived' => [
-                'status' => 'Arrived',
-                'from' => 'Phlebotomist Assigned',
-                'message' => 'Phlebotomist marked as arrived successfully!'
-            ],
-            'collected' => [
-                'status' => 'Sample Collected',
-                'from' => 'Arrived',
-                'message' => 'Sample marked as collected successfully!'
-            ],
-            'report_ready' => [
-                'status' => 'Report Ready',
-                'from' => 'Sample Collected',
-                'message' => 'Report marked as ready successfully!'
-            ]
-        ];
-
-        // Validate action
-        if (!$action || !isset($statusMap[$action])) {
-            return redirect()->back()->with('error', 'Invalid action specified');
-        }
-
-        $db = \Config\Database::connect();
-
-        // Get the booking
-        $booking = $db->table('patient_test_bookings')
-            ->where('id', $bookingId)
-            ->get()
-            ->getRowArray();
-
-        if (!$booking) {
-            return redirect()->back()->with('error', 'Booking not found');
-        }
-
-        // Check if booking is in the correct state for this action
-        $currentStatus = $booking['status'];
-        $expectedStatus = $statusMap[$action]['from'];
-
-        if ($currentStatus !== $expectedStatus) {
-            return redirect()->back()->with(
-                'error',
-                'Cannot perform this action. Current status: "' . $currentStatus .
-                    '". Expected status: "' . $expectedStatus . '"'
-            );
-        }
-
-        // Update status
-        $newStatus = $statusMap[$action]['status'];
-        $updated = $db->table('patient_test_bookings')
-            ->where('id', $bookingId)
-            ->update([
-                'status' => $newStatus,
-                'date_updated' => date('Y-m-d H:i:s')
-            ]);
-
-        if (!$updated) {
-            return redirect()->back()->with('error', 'Failed to update booking status');
-        }
-        // After the update succeeds:
-        $this->logStatusHistory(
-            $bookingId,
-            $booking['fk_patient_id'],
-            $newStatus,
-            $statusMap[$action]['message']
-        );
-
-        // Redirect back to booking details page
-        return redirect()->to('/booking/view/' . $booking['fk_patient_id'])
-            ->with('success', $statusMap[$action]['message']);
+   // Already existing — add 'refused' to the match:
+public function updateStatus(int $bookingId, string $status): RedirectResponse
+{
+    $allowed = ['arrived', 'collected', 'refused'];
+    if (!in_array($status, $allowed)) {
+        return redirect()->back()->with('error', 'Invalid status.');
     }
-    /**
-     * Upload lab reports for a booking
-     */
+
+    $statusMap = [
+        'arrived'   => 'Arrived',
+        'collected' => 'Sample Collected',
+        'refused'   => 'Patient Refused',
+    ];
+
+    $db = \Config\Database::connect();
+
+    // Get any booking row to find patient_id
+    $booking = $db->table('patient_test_bookings')
+        ->where('id', $bookingId)
+        ->get()->getRowArray();
+
+    if (!$booking) {
+        return redirect()->back()->with('error', 'Booking not found.');
+    }
+
+    // Update ALL rows for this patient
+    $db->table('patient_test_bookings')
+        ->where('fk_patient_id', $booking['fk_patient_id'])
+        ->update([
+            'status'       => $statusMap[$status],
+            'date_updated' => date('Y-m-d H:i:s'),
+        ]);
+
+    // Log history
+    $this->logStatusHistory(
+    $booking['id'],
+    $booking['fk_patient_id'],
+    $statusMap[$status],
+    $status === 'refused' ? 'Patient refused' : ''
+);
+
+    return redirect()->to('/booking/view/' . $booking['fk_patient_id'])
+        ->with('success', 'Status updated to ' . $statusMap[$status]);
+}
+
+// Fix requestRevisit:
+public function requestRevisit(int $bookingId): RedirectResponse
+{
+    $revisitDatetime = $this->request->getPost('revisit_datetime');
+    $phlebId         = $this->request->getPost('phleb_id')      ?: null;
+    $notes           = $this->request->getPost('revisit_notes') ?: null;
+
+    $db = \Config\Database::connect();
+
+    $booking = $db->table('patient_test_bookings')
+        ->where('id', $bookingId)
+        ->get()->getRowArray();
+
+    if (!$booking) {
+        return redirect()->back()->with('error', 'Booking not found.');
+    }
+
+    $patientId = $booking['fk_patient_id'];
+
+    // Update ALL rows for this patient
+    $updateData = [
+        'status'       => 'Phlebotomist Assigned',
+        'date_updated' => date('Y-m-d H:i:s'),
+    ];
+    if ($revisitDatetime) $updateData['eta']      = $revisitDatetime;
+    if ($phlebId)         $updateData['phleb_id'] = $phlebId;
+
+    $db->table('patient_test_bookings')
+        ->where('fk_patient_id', $patientId)
+        ->update($updateData);
+
+    // Log history for all rows
+    $allRows = $db->table('patient_test_bookings')
+        ->where('fk_patient_id', $patientId)
+        ->get()->getResultArray();
+
+    foreach ($allRows as $b) {
+        $this->logStatusHistory(
+            $b['id'],
+            $patientId,
+            'Patient Refused',
+            'Re-visit requested: ' . ($notes ?? '')
+        );
+        $this->logStatusHistory(
+            $b['id'],
+            $patientId,
+            'Phlebotomist Assigned',
+            'Re-visit scheduled'
+        );
+    }
+
+    return redirect()->to('/booking/view/' . $patientId)
+        ->with('success', 'Re-visit scheduled successfully.');
+}
+
+
     public function uploadReport($bookingId = null)
     {
         if (!session()->get('logged_in')) {
@@ -484,12 +536,17 @@ public function assignPhlebotomist($bookingId = null)
                     'status' => 'Report Ready',
                     'date_updated' => date('Y-m-d H:i:s')
                 ]);
-
+            $this->logStatusHistory(
+                $bookingId,
+                $patientId,
+                'Report Ready',
+                'All reports uploaded'
+            );
             return redirect()->to('/booking/view/' . $patientId)
                 ->with('success', 'All reports uploaded successfully! Booking marked as Report Ready.');
-       // After the update succeeds:
+            // After the update succeeds:
 
-                }
+        }
 
         return redirect()->to('/booking/view/' . $patientId)
             ->with('success', $inserted . ' report(s) uploaded successfully!');
@@ -539,42 +596,141 @@ public function assignPhlebotomist($bookingId = null)
         return redirect()->to('/booking/view/' . $booking['fk_patient_id'])
             ->with('success', 'Payment marked as paid successfully!');
     }
-   private function logStatusHistory(int $bookingId, int $patientId, string $status, string $notes = '', string $changedBy = ''): void
-{
-    // Silently skip if booking_status_history table doesn't exist yet
-    $db = \Config\Database::connect();
-    if (!$db->tableExists('booking_status_history')) {
-        return;
-    }
+    private function logStatusHistory(int $bookingId, int $patientId, string $status, string $notes = '', string $changedBy = ''): void
+    {
+        // Silently skip if booking_status_history table doesn't exist yet
+        $db = \Config\Database::connect();
+        if (!$db->tableExists('booking_status_history')) {
+            return;
+        }
 
-    $db->table('booking_status_history')->insert([
-        'booking_id' => $bookingId,
-        'patient_id' => $patientId,
-        'status'     => $status,
-        'changed_by' => $changedBy ?: (session()->get('username') ?? 'System'),
-        'notes'      => $notes,
-        'changed_at' => date('Y-m-d H:i:s'),
-    ]);
-}
-public function saveNotes($patientId = null)
-{
-    if (!session()->get('logged_in')) {
-        return redirect()->to('/login');
-    }
-
-    if (!$patientId) {
-        return redirect()->back()->with('error', 'Invalid patient ID');
-    }
-
-    $db = \Config\Database::connect();
-    $db->table('patients')
-        ->where('id', $patientId)
-        ->update([
-            'instructions' => $this->request->getPost('instructions'),
-            'updated_at'   => date('Y-m-d H:i:s'),
+        $db->table('booking_status_history')->insert([
+            'booking_id' => $bookingId,
+            'patient_id' => $patientId,
+            'status'     => $status,
+            'changed_by' => $changedBy ?: (session()->get('username') ?? 'System'),
+            'notes'      => $notes,
+            'changed_at' => date('Y-m-d H:i:s'),
         ]);
+    }
+    public function saveNotes($patientId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
 
-    return redirect()->to('/booking/view/' . $patientId)
-        ->with('success', 'Notes saved successfully.');
-}
+        if (!$patientId) {
+            return redirect()->back()->with('error', 'Invalid patient ID');
+        }
+
+        $db = \Config\Database::connect();
+        $db->table('patients')
+            ->where('id', $patientId)
+            ->update([
+                'instructions' => $this->request->getPost('instructions'),
+                'updated_at'   => date('Y-m-d H:i:s'),
+            ]);
+
+        return redirect()->to('/booking/view/' . $patientId)
+            ->with('success', 'Notes saved successfully.');
+    }
+    // Add to BookingController
+
+    public function editTests($patientId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $db = \Config\Database::connect();
+
+        $patient = $db->table('patients')->where('id', $patientId)->get()->getRowArray();
+        if (!$patient) {
+            return redirect()->back()->with('error', 'Patient not found.');
+        }
+
+        // Current bookings for this patient
+        $currentBookings = $db->table('patient_test_bookings ptb')
+            ->select('ptb.id, ptb.fk_test_id, ptb.discount_percent, ptb.paid_status, lt.test_name, lt.test_code, lt.rate')
+            ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+            ->where('ptb.fk_patient_id', $patientId)
+            ->orderBy('ptb.date_created', 'ASC')
+            ->get()->getResultArray();
+
+        // All available tests
+        $allTests = $db->table('lab_tests')
+            ->orderBy('test_name', 'ASC')
+            ->get()->getResultArray();
+
+        return view('labDashboard/edit_tests', [
+            'patient'         => $patient,
+            'currentBookings' => $currentBookings,
+            'allTests'        => $allTests,
+        ]);
+    }
+
+    public function updateTests($patientId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login');
+        }
+
+        $db           = \Config\Database::connect();
+        $bookingModel = new PatientTestBookingModel();
+        $now          = date('Y-m-d H:i:s');
+
+        // IDs to delete (removed tests)
+        $deleteIds = $this->request->getPost('delete_ids') ?? [];
+        if (!empty($deleteIds)) {
+            $bookingModel->whereIn('id', $deleteIds)
+                ->where('fk_patient_id', $patientId)  // safety check
+                ->delete();
+        }
+
+        // New tests to add
+        $newTests = $this->request->getPost('new_tests') ?? [];
+        $insertRows = [];
+
+        foreach ($newTests as $t) {
+            $testId   = (int)($t['test_id'] ?? 0);
+            $discount = (int)($t['discount'] ?? 0);
+            $payment  = $t['payment'] ?? 'prepaid';
+
+            if ($testId <= 0) continue;
+            if ($discount < 0 || $discount > 100) $discount = 0;
+            if (!in_array($payment, ['cash', 'prepaid'], true)) $payment = 'prepaid';
+
+            $insertRows[] = [
+                'fk_patient_id'    => $patientId,
+                'fk_test_id'       => $testId,
+                'status'           => 'In Process',
+                'discount_percent' => $discount,
+                'paid_status'      => $payment,
+                'date_created'     => $now,
+                'date_updated'     => $now,
+            ];
+        }
+
+        if (!empty($insertRows)) {
+            $bookingModel->insertBatch($insertRows);
+        }
+
+        // Update existing rows (discount / payment changes)
+        $existingUpdates = $this->request->getPost('existing') ?? [];
+        foreach ($existingUpdates as $rowId => $vals) {
+            $discount = (int)($vals['discount'] ?? 0);
+            $payment  = $vals['payment'] ?? 'prepaid';
+
+            if ($discount < 0 || $discount > 100) $discount = 0;
+            if (!in_array($payment, ['cash', 'prepaid'], true)) $payment = 'prepaid';
+
+            $bookingModel->where('id', (int)$rowId)
+                ->where('fk_patient_id', $patientId)
+                ->set(['discount_percent' => $discount, 'paid_status' => $payment, 'date_updated' => $now])
+                ->update();
+        }
+
+        return redirect()->to(site_url('booking/view/' . $patientId))
+            ->with('success', 'Tests updated successfully.');
+    }
 }

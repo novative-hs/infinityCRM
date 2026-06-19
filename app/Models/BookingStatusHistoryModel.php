@@ -13,11 +13,12 @@ class BookingStatusHistoryModel extends Model
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
     protected $updatedField  = '';
-
-    public function getHistoryForPatient(int $patientId): array
-    {
-        return $this->where('patient_id', $patientId)
-                    ->orderBy('changed_at', 'ASC')
-                    ->findAll();
-    }
+public function getHistoryForPatient(int $patientId): array
+{
+    return $this->select('MIN(id) as id, booking_id, patient_id, status, changed_by, changed_at, notes')
+                ->where('patient_id', $patientId)
+                ->groupBy('status, DATE_FORMAT(changed_at, "%Y-%m-%d %H:%i")')
+                ->orderBy('changed_at', 'ASC')
+                ->findAll();
+}
 }

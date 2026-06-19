@@ -26,14 +26,14 @@ class PatientTestBookingModel extends Model
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'date_created';
     protected $updatedField  = 'date_updated';
-    protected $payment_date='payment_date';
+    protected $payment_date = 'payment_date';
     protected $validationRules = [
         'fk_patient_id' => 'required|integer',
         'fk_test_id'    => 'required|integer',
         'status'        => 'required',
         'payment_method' => 'required|in_list[cash,prepaid]',
         'payment_status' => 'required|in_list[paid,unpaid]',
-        
+
     ];
 
     // Get filtered bookings for dashboard
@@ -71,9 +71,9 @@ class PatientTestBookingModel extends Model
         if (!empty($filters['search'])) {
             $search = $filters['search'];
             $builder->groupStart()
-                        ->like('p.patient_name', $search)
-                        ->orLike('p.phone_number', $search)
-                    ->groupEnd();
+                ->like('p.patient_name', $search)
+                ->orLike('p.phone_number', $search)
+                ->groupEnd();
         }
 
         if (!empty($filters['date_from'])) {
@@ -82,7 +82,9 @@ class PatientTestBookingModel extends Model
         if (!empty($filters['date_to'])) {
             $builder->where('DATE(ptb.date_created) <=', $filters['date_to']);
         }
-
+        if (!empty($filters['lab_id'])) {
+            $builder->where('lt.lab_id', $filters['lab_id']);
+        }
         return $builder->orderBy('ptb.date_created', 'DESC')->get()->getResultArray();
     }
 
@@ -112,66 +114,67 @@ class PatientTestBookingModel extends Model
     }
 
     // Get status counts for dashboard
-    public function getStatusCounts(): array
-    {
-        $db = \Config\Database::connect();
-        $result = $db->table('patient_test_bookings')
-            ->select('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->get()->getResultArray();
+   public function getStatusCounts(int $labId = 0): array
+{
+    $db = \Config\Database::connect();
 
-        $counts = [
-            'total' => 0,
-            'in_process' => 0,
-            'assigned' => 0,
-            'arrived' => 0,
-            'collected' => 0,
-            'report_ready' => 0
-        ];
+    $builder = $db->table('patient_test_bookings ptb')
+        ->select('ptb.status, COUNT(DISTINCT ptb.fk_patient_id) as count')
+        ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+        ->groupBy('ptb.status');
 
-        foreach ($result as $row) {
-            $status = strtolower($row['status']);
-            $counts['total'] += (int)$row['count'];
-            
-            if ($status === 'in process') {
-                $counts['in_process'] = (int)$row['count'];
-            } elseif ($status === 'phlebotomist assigned') {
-                $counts['assigned'] = (int)$row['count'];
-            } elseif ($status === 'phlebotomist arrived') {
-                $counts['arrived'] = (int)$row['count'];
-            } elseif ($status === 'sample collected') {
-                $counts['collected'] = (int)$row['count'];
-            } elseif ($status === 'report ready') {
-                $counts['report_ready'] = (int)$row['count'];
-            }
-        }
-
-        return $counts;
+    if ($labId) {
+        $builder->where('lt.lab_id', $labId);
     }
+
+    $result = $builder->get()->getResultArray();
+
+    $counts = [
+        'total'        => 0,
+        'in_process'   => 0,
+        'assigned'     => 0,
+        'arrived'      => 0,
+        'collected'    => 0,
+        'report_ready' => 0,
+    ];
+
+    foreach ($result as $row) {
+        $status = strtolower($row['status']);
+        $counts['total'] += (int)$row['count'];
+
+        if ($status === 'in process')                $counts['in_process']   = (int)$row['count'];
+        elseif ($status === 'phlebotomist assigned') $counts['assigned']     = (int)$row['count'];
+        elseif ($status === 'arrived')               $counts['arrived']      = (int)$row['count'];
+        elseif ($status === 'sample collected')      $counts['collected']    = (int)$row['count'];
+        elseif ($status === 'report ready')          $counts['report_ready'] = (int)$row['count'];
+    }
+
+    return $counts;
+}
 
     // Get booking with details for invoice
     public function getBookingWithDetails($bookingId)
     {
         $db = \Config\Database::connect();
-        
+
         // First get the booking
         $booking = $db->table('patient_test_bookings')
             ->where('id', $bookingId)
             ->get()
             ->getRowArray();
-            
+
         if (!$booking) {
             return null;
         }
-        
+
         // Get patient details
         $patient = $db->table('patients')
             ->where('id', $booking['fk_patient_id'])
             ->get()
             ->getRowArray();
-            
+
         $booking['patient'] = $patient;
-        
+
         // Get all tests for this booking
         $tests = $db->table('patient_test_bookings ptb')
             ->select('ptb.*, lt.test_name, lt.test_code, lt.rate as rack_rate, lt.reporting_time')
@@ -179,9 +182,9 @@ class PatientTestBookingModel extends Model
             ->where('ptb.id', $bookingId)
             ->get()
             ->getResultArray();
-            
+
         $booking['tests'] = $tests;
-        
+
         return $booking;
     }
 
@@ -189,7 +192,7 @@ class PatientTestBookingModel extends Model
     public function getTestsByBookingId($bookingId)
     {
         $db = \Config\Database::connect();
-        
+
         return $db->table('patient_test_bookings ptb')
             ->select('
                 ptb.*,
@@ -210,7 +213,7 @@ class PatientTestBookingModel extends Model
     public function getBookingsByPatientId($patientId)
     {
         $db = \Config\Database::connect();
-        
+
         return $db->table('patient_test_bookings ptb')
             ->select('ptb.*, lt.test_name, lt.test_code, lt.rate')
             ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
@@ -228,4 +231,52 @@ class PatientTestBookingModel extends Model
             'date_updated' => date('Y-m-d H:i:s')
         ]);
     }
+    // Existing — make sure it logs to status_history too
+public function updateBookingStatus(int $bookingId, string $status, string $notes = ''): void
+{
+    $db = \Config\Database::connect();
+
+    // Update main booking row
+    $db->table('patient_test_bookings')
+       ->where('id', $bookingId)
+       ->update(['status' => $status]);
+
+    // Insert history row
+    $db->table('booking_status_history')->insert([
+        'fk_booking_id' => $bookingId,
+        'status'        => $status,
+        'notes'         => $notes,
+        'changed_by'    => session()->get('user_name') ?? 'Lab',
+        'changed_at'    => date('Y-m-d H:i:s'),
+    ]);
+}
+
+// New:
+public function scheduleRevisit(int $bookingId, array $data): void
+{
+    $db = \Config\Database::connect();
+
+    $update = ['status' => 'Phlebotomist Assigned'];
+
+    if (!empty($data['eta'])) {
+        $update['eta'] = $data['eta'];
+    }
+    if (!empty($data['phleb_id'])) {
+        $update['phleb_id'] = $data['phleb_id'];
+    }
+
+    // Update booking row
+    $db->table('patient_test_bookings')
+       ->where('id', $bookingId)
+       ->update($update);
+
+    // Log revisit in history
+    $db->table('booking_status_history')->insert([
+        'fk_booking_id' => $bookingId,
+        'status'        => 'Phlebotomist Assigned',
+        'notes'         => 'Re-visit: ' . ($data['notes'] ?? ''),
+        'changed_by'    => session()->get('user_name') ?? 'Lab',
+        'changed_at'    => date('Y-m-d H:i:s'),
+    ]);
+}
 }
