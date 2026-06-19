@@ -18,9 +18,13 @@ $tests = $tests ?? [
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<?= view('templates/header', ['pageTitle' => 'Lab List', 'activePage' => 'lablist']) ?>
+
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body class="bg-light">
+<?= view('templates/header', ['pageTitle' => 'Booking', 'activePage' => 'bookingform']) ?>
 
 <div class="container py-4" style="max-width: 860px;">
 
@@ -30,8 +34,8 @@ $tests = $tests ?? [
     <p class="text-muted mb-0">Fill in patient details and test information</p>
   </div>
 
-  <form method="post" action="<?= site_url('booking/add') ?>">
-    <?= csrf_field() ?>
+<form method="post" action="<?= site_url('booking/add') ?>" id="booking_form">
+      <?= csrf_field() ?>
 
 
     <div class="card2 shadow-sm mb-4">
@@ -48,12 +52,13 @@ $tests = $tests ?? [
                    required>
           </div>
           <div class="col-md-6">
-            <label for="phone_number" class="form-label2 fw-semibold">
-              Phone Number <span class="text-danger">*</span>
-            </label>
-            <input type="number" class="form-control" id="phone_number" name="phone_number"
-                   placeholder="03XX-XXXXXXX" required>
-          </div>
+  <label for="phone_number" class="form-label2 fw-semibold">
+    Phone Number <span class="text-danger">*</span>
+  </label>
+  <input type="text" class="form-control" id="phone_number" name="phone_number"
+         inputmode="tel" placeholder="03XX-XXXXXXX or +92XXXXXXXXXX" maxlength="13" required>
+  <small class="text-danger d-none" id="phone-error">Enter a valid Pakistani number — mobile (03XX-XXXXXXX), landline (0XX-XXXXXXX), or international (+92XXXXXXXXXX).</small>
+</div>
         </div>
 
         <div class="row g-3 mb-3">
@@ -84,14 +89,39 @@ $tests = $tests ?? [
                     placeholder="Full home address for sample collection" required></textarea>
         </div>
 
-        <div class="mb-3">
+        <!-- <div class="mb-3">
           <label for="pin_location" class="form-label2 fw-semibold">
             <i class="bi bi-geo-alt me-1"></i>Pin Location
             <span class="text-muted fw-normal">(optional — paste Google Maps link)</span>
           </label>
           <input type="url" class="form-control" id="pin_location" name="pin_location"
                  placeholder="https://maps.google.com/...">
-        </div>
+        </div> -->
+
+        <div class="mb-3 position-relative">
+  <label for="pin_location_search" class="form-label2 fw-semibold">
+    <i class="bi bi-geo-alt me-1"></i>Pin Location
+    <span class="text-muted fw-normal">(optional — click the box to open the map)</span>
+  </label>
+  <input type="text" class="form-control mb-2" id="pin_location_search" autocomplete="off"
+         placeholder="Search address, area, or landmark…">
+  <div class="position-absolute w-100 bg-white border rounded-3 shadow-lg d-none"
+       id="pin_search_dropdown" style="z-index: 1050; max-height: 250px; overflow-y: auto; top: 58px;"></div>
+
+  <div class="position-relative d-none" id="pin_map_wrapper">
+    <button type="button"
+            class="btn btn-sm btn-light border rounded-circle position-absolute d-flex align-items-center justify-content-center"
+            id="pin_map_close" title="Close map"
+            style="top: 8px; right: 8px; z-index: 1000; width: 32px; height: 32px; padding: 0;">
+      <i class="bi bi-x-lg"></i>
+    </button>
+    <div id="pin_map" style="height: 280px; border-radius: 0.5rem;"></div>
+  </div>
+
+  <input type="hidden" name="pin_lat" id="pin_lat">
+  <input type="hidden" name="pin_lng" id="pin_lng">
+  <input type="hidden" name="pin_address" id="pin_address">
+</div>
 
         <div class="mb-0">
           <label for="instructions" class="form-label2 fw-semibold">
@@ -105,7 +135,7 @@ $tests = $tests ?? [
     </div>
 
     
-    <div class="shadow-sm mb-4">
+    <div class="card2 shadow-sm mb-4">
       <div class="card-body p-4">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
           <h5 class="fw-bold mb-0">Tests Ordered</h5>
@@ -137,48 +167,49 @@ $tests = $tests ?? [
         </div>
 
         <div class="rounded-3" id="tests_list" style="border: 1px dashed #ced4da;">
-          <div class="p-5 text-center" id="no_tests_row">
-            <i class="bi bi-flask fs-1 text-muted d-block mb-2"></i>
-            <span class="text-muted">No tests added yet. Search above to add tests.</span>
-          </div>
-        </div>
+  <div class="p-5 text-center" id="no_tests_row">
+    <i class="bi bi-flask fs-1 text-muted d-block mb-2"></i>
+    <span class="text-muted">No tests added yet. Search above to add tests.</span>
+  </div>
+</div>
+<small class="text-danger d-none mt-2 d-block" id="tests-error">Please add at least one test before submitting.</small>
       </div>
     </div>
 
    
     <div class="rounded-3 p-4 mb-4 d-none" id="financial_summary_panel" style="background-color:#edeeee;">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="fw-bold form-label2 mb-0">
-          <i class="bi bi-flask me-2"></i>Financial Summary
-        </h6>
-        <span class="form-label2 small">Live preview</span>
-      </div>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold mb-0" style="color:#154c80;">
+      <i class="bi bi-flask me-2"></i>Financial Summary
+    </h6>
+    <span class="small" style="color:#154c80;">Live preview</span>
+  </div>
 
-      <div id="form-label2 summary_line_items" class="border-bottom pb-2 mb-2" style="border-color: rgba(255,255,255,0.15) !important;"></div>
+  <div id="summary_line_items" class="border-bottom pb-2 mb-2" style="border-color: rgba(32, 132, 226, 0.15) !important;"></div>
 
-      <div class="form-label2 d-flex justify-content-between mb-1">
-        <span>Original Total (Rack Rate)</span>
-        <span class="form-label2" id="summary_original">PKR 0</span>
-      </div>
-      <div class="form-label2 d-flex justify-content-between border-bottom pb-2 mb-2" style="border-color: rgba(255,255,255,0.15) !important;">
-        <span >Total Discount</span>
-        <span  id="summary_discount">- PKR 0</span>
-      </div>
-      <div class="form-label2 d-flex justify-content-between">
-        <span class="form-label2 fw-bold fs-5">Patient Pays</span>
-        <span class="form-label2 fw-bold fs-5" id="summary_patient_pays">PKR 0</span>
-      </div>
+  <div class="d-flex justify-content-between mb-1">
+    <span style="color:#154c80;">Original Total (Rack Rate)</span>
+    <span style="color:#154c80;" id="summary_original">PKR 0</span>
+  </div>
+  <div class="d-flex justify-content-between border-bottom pb-2 mb-2" style="border-color: rgba(21,76,128,0.15) !important;">
+    <span style="color:#154c80;">Total Discount</span>
+    <span style="color:#FF8A80;" id="summary_discount">- PKR 0</span>
+  </div>
+  <div class="d-flex justify-content-between">
+    <span class="fw-bold fs-5" style="color:#154c80;">Patient Pays</span>
+    <span class="fw-bold fs-5" style="color:#154c80;" id="summary_patient_pays">PKR 0</span>
+  </div>
 
-      <div class="form-label2 rounded-2 p-2 mt-3 text-center fw-semibold d-none" id="prepaid_banner"
-           style="background-color: rgba(34,197,94,0.15);"></div>
-    </div>
+  <div class="rounded-2 p-2 mt-3 text-center fw-semibold d-none" id="prepaid_banner"
+       style="background-color: rgba(34,197,94,0.15); color:#0c7a43;"></div>
+</div>
 
    
     <div class="d-flex justify-content-start gap-2 mb-5">
       <a href="<?= site_url('labDashboard/dashboard') ?>" class="btn btn-outline-secondary px-4">
         <i class="bi bi-arrow-left me-1"></i>Cancel
       </a>
-      <button type="submit" class="btn px-4 fw-semibold" style="background-color:#154c80;color:#fff;">
+         <button type="submit" class="btn px-4 fw-semibold" style="background-color:#154c80;color:#fff;">
         <i class="bi bi-plus-lg me-1"></i>Create Booking
       </button>
     </div>
@@ -192,14 +223,39 @@ $tests = $tests ?? [
 document.getElementById('patient_name').addEventListener('input', function () {
     this.value = this.value.replace(/[^A-Za-z\s]/g, '');
   });
-</script>
-<script>
+
  
- 
+ const phoneField = document.getElementById('phone_number');
+const phoneError = document.getElementById('phone-error');
+const testsError = document.getElementById('tests-error');
+const bookingForm = document.getElementById('booking_form');
   const testsList = document.getElementById('tests_list');
   const noTestsRow = document.getElementById('no_tests_row');
   const searchInput = document.getElementById('test_search');
   const searchDropdown = document.getElementById('search_dropdown');
+  function updateEmptyState() {
+  const hasTests = !!testsList.querySelector('[data-test-row]');
+  noTestsRow.classList.toggle('d-none', hasTests);
+  testsList.style.border = hasTests ? '1px solid #dee2e6' : '1px dashed #ced4da';
+  applyToAllWrapper.classList.toggle('d-none', !hasTests);
+  financialSummaryPanel.classList.toggle('d-none', !hasTests);
+  if (hasTests) testsError.classList.add('d-none');
+}
+bookingForm.addEventListener('submit', function (e) {
+  let valid = true;
+
+  if (!phonePattern.test(phoneField.value)) {
+    phoneError.classList.remove('d-none');
+    valid = false;
+  }
+
+  if (!testsList.querySelector('[data-test-row]')) {
+    testsError.classList.remove('d-none');
+    valid = false;
+  }
+
+  if (!valid) e.preventDefault();
+});
   const allTests = <?= json_encode(array_map(fn($t) => [
       'id'    => $t['id'],
       'test_code'  => $t['test_code'],
@@ -245,10 +301,10 @@ document.getElementById('patient_name').addEventListener('input', function () {
 
       return `
         <div class="d-flex justify-content-between small mb-1">
-          <span style="color:#9FC4DA;">${name} (${discount}% off)</span>
+          <span style="color:#154c80;">${name} (${discount}% off)</span>
           <span>
-            <span class="text-decoration-line-through" style="color:#6B93AC;">${fmt(price)}</span>
-            <span class="text-white fw-semibold">${fmt(final)}</span>
+            <span class="text-decoration-line-through" style="color:#154c80;">${fmt(price)}</span>
+            <span class="text-black fw-semibold">${fmt(final)}</span>
           </span>
         </div>`;
     }).join('');
@@ -291,17 +347,27 @@ document.getElementById('patient_name').addEventListener('input', function () {
     const cashBtn = row.querySelector('.payment-cash');
     const prepaidBtn = row.querySelector('.payment-prepaid');
 
-    if (method === 'cash') {
-      cashBtn.className = 'btn btn-sm rounded-pill payment-cash bg-warning-subtle text-warning-emphasis border-0 fw-semibold';
-      prepaidBtn.className = 'btn btn-sm rounded-pill payment-prepaid btn-outline-secondary';
-    } else {
-      cashBtn.className = 'btn btn-sm rounded-pill payment-cash btn-outline-secondary';
-      prepaidBtn.className = 'btn btn-sm rounded-pill payment-prepaid bg-success-subtle text-success-emphasis border-0 fw-semibold';
-    }
+ if (method === 'cash') {
+    cashBtn.className = 'btn btn-sm rounded-pill payment-cash fw-semibold border-0';
+    cashBtn.style.cssText = 'background-color:#fff3cd; color:#856404;';
+    prepaidBtn.className = 'btn btn-sm rounded-pill payment-prepaid border';
+    prepaidBtn.style.cssText = 'background-color:#fff; color:#6c757d; border-color:#ced4da;';
+  } else {
+    cashBtn.className = 'btn btn-sm rounded-pill payment-cash border';
+    cashBtn.style.cssText = 'background-color:#fff; color:#6c757d; border-color:#ced4da;';
+    prepaidBtn.className = 'btn btn-sm rounded-pill payment-prepaid fw-semibold border-0';
+    prepaidBtn.style.cssText = 'background-color:#d1f5e0; color:#0c7a43;';
+  }
     cashBtn.textContent = 'Cash';
     prepaidBtn.textContent = 'Pre-paid ✓';
     recalcTotals();
   }
+
+  function getAddedTestIds() {
+  return new Set(
+    [...testsList.querySelectorAll('[data-test-row]')].map(r => r.dataset.testId)
+  );
+}
 
   function addTestRow(name, test_code, price, testId) {
     if (!name) return;
@@ -311,9 +377,11 @@ document.getElementById('patient_name').addEventListener('input', function () {
     row.dataset.testRow = 'true';
     row.dataset.price = price;
     row.dataset.name = name;
+    row.dataset.testId = String(testId);
     row.className = 'p-3 border-bottom';
     row.innerHTML = `
-      <div class="d-flex justify-content-between align-items-start">
+    
+      <div class="d-flex justify-content-between align-items-start" >
         <div>
           <span class="text-muted small me-2">${test_code || ''}</span>
           <span class="fw-semibold">${name}</span>
@@ -337,8 +405,8 @@ document.getElementById('patient_name').addEventListener('input', function () {
           <span class="badge bg-success-subtle text-success-emphasis rounded-pill save-badge d-none"></span>
         </div>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-sm rounded-pill payment-cash btn-outline-secondary">Cash</button>
-          <button type="button" class="btn btn-sm rounded-pill payment-prepaid bg-success-subtle text-success-emphasis border-0 fw-semibold">Pre-paid ✓</button>
+          <button type="button" class="btn btn-sm rounded-pill payment-cash border" style="background-color:#fff; color:#6c757d; border-color:#ced4da;">Cash</button>
+<button type="button" class="btn btn-sm rounded-pill payment-prepaid fw-semibold border-0" style="background-color:#d1f5e0; color:#0c7a43;">Pre-paid ✓</button> 
         </div>
       </div>
       <input type="hidden" name="tests[${rowCounter}][test_id]" value="${testId || ''}">
@@ -346,6 +414,7 @@ document.getElementById('patient_name').addEventListener('input', function () {
       <input type="hidden" name="tests[${rowCounter}][name]" value="${name}">
       <input type="hidden" name="tests[${rowCounter}][price]" value="${price}">
       <input type="hidden" class="payment-input" name="tests[${rowCounter}][payment]" value="prepaid">
+    
     `;
     testsList.appendChild(row);
     updateEmptyState();
@@ -370,56 +439,74 @@ document.getElementById('patient_name').addEventListener('input', function () {
     searchInput.value = '';
   }
 
-  function renderSearchDropdown(query) {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      searchDropdown.classList.add('d-none');
-      searchDropdown.innerHTML = '';
-      return;
-    }
-
-    const discount = parseFloat(defaultDiscountInput.value || 0);
-    const matches = allTests
-      .filter(t => t.name.toLowerCase().includes(q) || String(t.test_code).toLowerCase().includes(q))
-      .slice(0, 30);
-
-    if (matches.length === 0) {
-      searchDropdown.innerHTML = '<div class="p-3 text-muted text-center small">No matching tests found.</div>';
-      searchDropdown.classList.remove('d-none');
-      return;
-    }
-
-    searchDropdown.innerHTML = matches.map(t => {
-      const final = t.price - (t.price * discount / 100);
-      const savings = t.price - final;
-      return `
-        <div class="d-flex justify-content-between align-items-start p-3 border-bottom search-result-item"
-             role="button" data-id="${t.id}" data-code="${t.test_code}" data-name="${t.name}" data-price="${t.price}">
-          <div>
-            <span class="fw-semibold">${t.name}</span>
-            <span class="text-muted small ms-2">${t.test_code}</span>
-          </div>
-          <div class="text-end">
-            ${savings > 0 ? `<div class="text-muted text-decoration-line-through small">${fmt(t.price)}</div>` : ''}
-            <div class="fw-bold ${savings > 0 ? 'text-success' : 'text-dark'}">${fmt(final)}</div>
-            ${savings > 0 ? `<div class="small text-success">save ${fmt(savings)}</div>` : ''}
-          </div>
-        </div>`;
-    }).join('');
-
-    searchDropdown.classList.remove('d-none');
-
-    searchDropdown.querySelectorAll('.search-result-item').forEach(item => {
-      item.addEventListener('mouseenter', () => item.classList.add('bg-light'));
-      item.addEventListener('mouseleave', () => item.classList.remove('bg-light'));
-      item.addEventListener('click', () => {
-        addTestRow(item.dataset.name, item.dataset.code, item.dataset.price, item.dataset.id);
-        searchDropdown.classList.add('d-none');
-        searchDropdown.innerHTML = '';
-      });
-    });
+ function renderSearchDropdown(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    searchDropdown.classList.add('d-none');
+    searchDropdown.innerHTML = '';
+    return;
   }
 
+  const discount = parseFloat(defaultDiscountInput.value || 0);
+  const addedIds = getAddedTestIds();   // <-- track added tests
+  const matches = allTests
+    .filter(t => t.name.toLowerCase().includes(q) || String(t.test_code).toLowerCase().includes(q))
+    .slice(0, 30);
+
+  if (matches.length === 0) {
+    searchDropdown.innerHTML = '<div class="p-3 text-muted text-center small">No matching tests found.</div>';
+    searchDropdown.classList.remove('d-none');
+    return;
+  }
+
+  searchDropdown.innerHTML = matches.map(t => {
+    const isAdded = addedIds.has(String(t.id));
+    const final = t.price - (t.price * discount / 100);
+    const savings = t.price - final;
+
+    if (isAdded) {
+      return `
+        <div class="d-flex justify-content-between align-items-start p-3 border-bottom"
+             style="opacity:0.6; cursor:not-allowed;" data-id="${t.id}">
+          <div>
+            <span class="fw-semibold text-muted">${t.name}</span>
+            <span class="text-muted small ms-2">${t.test_code}</span>
+            <span class="text-success small ms-2"><i class="bi bi-check-lg"></i> Added</span>
+          </div>
+          <div class="text-end">
+            <div class="fw-bold text-muted">${fmt(t.price)}</div>
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div class="d-flex justify-content-between align-items-start p-3 border-bottom search-result-item"
+           role="button" data-id="${t.id}" data-code="${t.test_code}" data-name="${t.name}" data-price="${t.price}">
+        <div>
+          <span class="fw-semibold">${t.name}</span>
+          <span class="text-muted small ms-2">${t.test_code}</span>
+        </div>
+        <div class="text-end">
+          ${savings > 0 ? `<div class="text-muted text-decoration-line-through small">${fmt(t.price)}</div>` : ''}
+          <div class="fw-bold ${savings > 0 ? 'text-success' : 'text-dark'}">${fmt(final)}</div>
+          ${savings > 0 ? `<div class="small text-success">save ${fmt(savings)}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  searchDropdown.classList.remove('d-none');
+
+  // only attach click/hover handlers to the still-addable items
+  searchDropdown.querySelectorAll('.search-result-item').forEach(item => {
+    item.addEventListener('mouseenter', () => item.classList.add('bg-light'));
+    item.addEventListener('mouseleave', () => item.classList.remove('bg-light'));
+    item.addEventListener('click', () => {
+      addTestRow(item.dataset.name, item.dataset.code, item.dataset.price, item.dataset.id);
+      searchDropdown.classList.add('d-none');
+      searchDropdown.innerHTML = '';
+    });
+  });
+}
   searchInput.addEventListener('input', () => renderSearchDropdown(searchInput.value));
   searchInput.addEventListener('focus', () => {
     if (searchInput.value) renderSearchDropdown(searchInput.value);
@@ -450,7 +537,169 @@ document.getElementById('patient_name').addEventListener('input', function () {
       recalcRow(row);
     });
   });
+
+  const phonePattern = /^(03\d{2}-\d{7}|0(?!3)\d{2}-\d{7}|\+92\d{9,10})$/;
+
+phoneField.addEventListener('input', function () {
+  let value = this.value;
+
+  if (value.startsWith('+')) {
+    // International — keep the + and digits only, no dash formatting
+    value = '+' + value.slice(1).replace(/\D/g, '');
+    this.value = value.slice(0, 13); // +92 plus up to 10 digits
+  } else {
+    // Local — existing mobile/landline auto-dash logic
+    let digits = value.replace(/\D/g, '');
+    const isMobile = digits.length < 2 || digits[1] === '3';
+    const maxLen = isMobile ? 11 : 10;
+    digits = digits.slice(0, maxLen);
+
+    const splitAt = isMobile ? 4 : 3;
+    this.value = digits.length > splitAt
+      ? digits.slice(0, splitAt) + '-' + digits.slice(splitAt)
+      : digits;
+  }
+
+  if (phonePattern.test(this.value)) phoneError.classList.add('d-none');
+});
+
+phoneField.addEventListener('blur', function () {
+  phoneError.classList.toggle('d-none', phonePattern.test(this.value));
+});
+
+
+  // ---- Pin location: map only opens when the search box is focused, closes via the × button ----
+
+  const defaultCenter = [33.6844, 73.0479]; // Rawalpindi/Islamabad fallback
+
+  const pinSearchInput = document.getElementById('pin_location_search');
+  const pinDropdown     = document.getElementById('pin_search_dropdown');
+  const pinMapWrapper   = document.getElementById('pin_map_wrapper');
+  const pinMapCloseBtn  = document.getElementById('pin_map_close');
+  let searchDebounce;
+  let pinMap, pinMarker;
+  let pinMapInitialized = false;
+
+  function updatePinFields(lat, lng, address) {
+    document.getElementById('pin_lat').value = lat;
+    document.getElementById('pin_lng').value = lng;
+    document.getElementById('pin_address').value = address || '';
+  }
+
+  function movePin(lat, lng, address, recenter = true) {
+    const latLng = [lat, lng];
+    pinMarker.setLatLng(latLng);
+    if (recenter) { pinMap.setView(latLng, 16); }
+    updatePinFields(lat, lng, address);
+  }
+
+  function reverseGeocode(lat, lng) {
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then(res => res.json())
+      .then(data => {
+        const address = data.display_name || '';
+        pinSearchInput.value = address;
+        updatePinFields(lat, lng, address);
+      })
+      .catch(() => updatePinFields(lat, lng, ''));
+  }
+
+  // Map is created lazily (only the first time it's needed), since initializing
+  // Leaflet inside a hidden container produces a blank/grey map.
+  function initPinMap() {
+    if (pinMapInitialized) return;
+
+    pinMap = L.map('pin_map').setView(defaultCenter, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(pinMap);
+
+    pinMarker = L.marker(defaultCenter, { draggable: true }).addTo(pinMap);
+
+    pinMarker.on('dragend', () => {
+      const { lat, lng } = pinMarker.getLatLng();
+      reverseGeocode(lat, lng);
+    });
+
+    pinMap.on('click', (e) => {
+      pinMarker.setLatLng(e.latlng);
+      reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    pinMapInitialized = true;
+  }
+
+  function showPinMap() {
+    pinMapWrapper.classList.remove('d-none');
+    initPinMap();
+    // Nudge Leaflet to recalculate tile size now that the container is visible.
+    setTimeout(() => pinMap.invalidateSize(), 80);
+  }
+
+  function hidePinMap() {
+    pinMapWrapper.classList.add('d-none');
+  }
+
+  pinSearchInput.addEventListener('focus', () => {
+    showPinMap();
+  });
+
+  pinMapCloseBtn.addEventListener('click', () => {
+    hidePinMap();
+  });
+
+  pinSearchInput.addEventListener('input', function () {
+    clearTimeout(searchDebounce);
+    const q = this.value.trim();
+
+    if (!q) {
+      pinDropdown.classList.add('d-none');
+      pinDropdown.innerHTML = '';
+      return;
+    }
+
+    // Nominatim's usage policy caps free requests at ~1/sec — debounce keeps us well under that.
+    searchDebounce = setTimeout(() => {
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=pk&limit=5`)
+        .then(res => res.json())
+        .then(results => {
+          if (!results.length) {
+            pinDropdown.innerHTML = '<div class="p-3 text-muted text-center small">No matches found.</div>';
+            pinDropdown.classList.remove('d-none');
+            return;
+          }
+
+          pinDropdown.innerHTML = results.map(r => `
+            <div class="p-2 border-bottom pin-result-item" role="button"
+                 data-lat="${r.lat}" data-lon="${r.lon}" data-address="${r.display_name.replace(/"/g, '&quot;')}">
+              <small>${r.display_name}</small>
+            </div>`).join('');
+          pinDropdown.classList.remove('d-none');
+
+          pinDropdown.querySelectorAll('.pin-result-item').forEach(item => {
+            item.addEventListener('mouseenter', () => item.classList.add('bg-light'));
+            item.addEventListener('mouseleave', () => item.classList.remove('bg-light'));
+            item.addEventListener('click', () => {
+              showPinMap();
+              movePin(parseFloat(item.dataset.lat), parseFloat(item.dataset.lon), item.dataset.address);
+              pinSearchInput.value = item.dataset.address;
+              pinDropdown.classList.add('d-none');
+              pinDropdown.innerHTML = '';
+            });
+          });
+        });
+    }, 400);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#pin_location_search') && !e.target.closest('#pin_search_dropdown')) {
+      pinDropdown.classList.add('d-none');
+    }
+  });
 </script>
 
 </body>
 </html>
+
+<?= view('templates/footer') ?>

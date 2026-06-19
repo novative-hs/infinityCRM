@@ -11,7 +11,7 @@
       background-color: #bdcfda;
     }
     .login-card {
-      background-color: #dc2626;
+      background-color: #961914;
       overflow: hidden;
     }
     .login-card-body {
@@ -30,12 +30,12 @@
       color: #8a99a8 !important;
     }
     .btn-teal {
-      background-color: #dc2626;
+      background-color: #961914;
       border: none;
       color: #fff;
     }
     .btn-teal:hover {
-      background-color: #dc2626;
+      background-color: #961914;
       color: #fff;
     }
     .accent-cyan {
@@ -64,7 +64,7 @@
     <!-- White bottom section -->
     <div class="login-card-body rounded-4 p-4" style="margin-top:-1.5rem;">
 
-      <h2 class="fw-bold fs-4 mb-4" style="color:#dc2626;">Sign In</h2>
+      <h2 class="fw-bold fs-4 mb-4" style="color:#961914;">Sign In</h2>
 
       <?php if (session()->getFlashdata('error')): ?>
         <div class="alert alert-danger py-2 small">
@@ -76,7 +76,7 @@
         <?= csrf_field() ?>
 
         <div class="mb-3">
-          <label class="form-label fw-medium" style="color:#dc2626;">Email Address</label>
+          <label class="form-label fw-medium" style="color:#961914;">Email Address</label>
           <div class="input-group">
             <span class="input-group-text input-group-text-light">
               <i class="ti ti-mail"></i>
@@ -88,7 +88,7 @@
         </div>
 
         <div class="mb-4">
-          <label class="form-label fw-medium" style="color:#dc2626;">Password</label>
+          <label class="form-label fw-medium" style="color:#961914;">Password</label>
           <div class="input-group">
             <span class="input-group-text input-group-text-light">
               <i class="ti ti-lock"></i>

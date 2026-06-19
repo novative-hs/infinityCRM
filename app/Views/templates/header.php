@@ -14,8 +14,16 @@
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg">
   <div class="container-fluid px-4">
+    <?php 
+    $userRole   = session()->get('user_role'); 
+    $activePage = $activePage ?? '';
 
-<a class="navbar-brand d-flex align-items-center gap-2" href="<?= base_url('dbadmin/dashboard') ?>">
+    $dashboardUrl = $userRole === 'admin' 
+        ? base_url('dbadmin/dashboard') 
+        : base_url('labDashboard/dashboard');
+    ?>
+
+<a class="navbar-brand d-flex align-items-center gap-2" href="<?= $dashboardUrl ?>">
   <div class="d-flex flex-column" style="line-height:1;">
     <img src="<?= base_url('assets/images/12.png') ?>" alt="Infinity Healthcare" height="60" width="140"/>
     <small style="font-size:11px; color:#000; letter-spacing:0.5px; margin:2px;">by infinityhealthpk.com</small>
@@ -27,10 +35,6 @@
 
     <div class="collapse navbar-collapse justify-content-end" id="navMenu">
       <ul class="navbar-nav align-items-center gap-1">
-        <?php 
-        $userRole  = session()->get('user_role'); 
-        $activePage = $activePage ?? '';
-        ?>
 
         <?php if ($userRole === 'admin'): ?>
           <li class="nav-item">
@@ -44,12 +48,12 @@
         <?php endif; ?>
 
         <?php if ($userRole === 'lab'): ?>
-          <li class="nav-item">
+          <!-- <li class="nav-item">
             <a class="nav-link text-dark <?= $activePage === 'dashboard' ? 'active-tab' : '' ?>"
                href="<?= base_url('labDashboard/dashboard') ?>">
               Dashboard
             </a>
-          </li>
+          </li> -->
           <li class="nav-item">
             <a class="nav-link text-dark d-flex align-items-center gap-1 <?= $activePage === 'pricelist' ? 'active-tab' : '' ?>" 
               href="<?= base_url('labDashboard/pricelist') ?>">

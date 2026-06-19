@@ -1,7 +1,3 @@
-Gmail	Bushra Saqlain <bushrasaqlain.pma.it@gmail.com>
-views-> labDashoard->booking_detaills.php
-Lab Hazir2 <labhazr2@gmail.com>	Thu, Jun 18, 2026 at 4:49 PM
-To: Bushra Saqlain <bushrasaqlain.pma.it@gmail.com>
 <?= view('templates/header', ['pageTitle' => 'Booking Details', 'activePage' => 'lablist']) ?>
 
 <style>
