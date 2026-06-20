@@ -4,13 +4,18 @@
 
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h2 class="fw-semibold mb-0" style="color:#961914;">Edit Lab</h2>
-      <small class="text-muted">Update lab information</small>
-    </div>
-    <a href="<?= base_url('lablist') ?>" class="btn btn-outline-secondary btn-sm">
-      <i class="ti ti-arrow-left me-1"></i> Back
-    </a>
+    <div class="d-flex align-items-start gap-3 mb-4">
+       
+    
+       <a href="<?= base_url('lablist') ?>" class="btn btn-link btn-sm mt-1 text-secondary" style="text-decoration:none;">
+            <i class="ti ti-arrow-left fs-3"></i>
+       </a>
+             <h2 class="fw-semibold mb-0" style="color:#961914;">Edit Lab</h2>
+
+    <div>
+   
   </div>
+</div>
 
   <?php if (session()->getFlashdata('error')): ?>
     <div class="alert alert-danger py-2 small"><?= session()->getFlashdata('error') ?></div>

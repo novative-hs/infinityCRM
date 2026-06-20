@@ -22,7 +22,7 @@ class CreatePatientTestsBookingTable extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
-            'fk_lab_id' => [
+            'fk_test_id' => [
                 // References tests.id (the tests table already exists).
                 'type'       => 'INT',
                 'constraint' => 11,
@@ -82,7 +82,7 @@ class CreatePatientTestsBookingTable extends Migration
 
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('fk_patient_id');
-        $this->forge->addKey('fk_lab_id');
+        $this->forge->addKey('fk_test_id');
         $this->forge->addKey('phleb_id');
         
 

@@ -4,7 +4,7 @@ namespace App\Services;
 
 class WhatsAppMessages
 {
-    public static function forStatus(string $status, string $patientName): string
+   public static function forStatus(string $status, string $patientName, array $extra = []): string
     {
         $name = trim($patientName);
 

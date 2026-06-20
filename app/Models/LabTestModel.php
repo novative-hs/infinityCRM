@@ -8,7 +8,7 @@ class LABTestModel extends Model
 {
     protected $table            = 'lab_tests';
     protected $primaryKey       = 'id';
-    protected $allowedFields    = ['code', 'test_name', 'rate', 'sample', 'reporting_time'];
+    protected $allowedFields = ['lab_id', 'code', 'test_name', 'rate', 'sample', 'reporting_time'];
 
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
@@ -22,4 +22,16 @@ class LABTestModel extends Model
         'test_name' => 'required|max_length[255]',
         'rate'      => 'required|decimal',
     ];
+    public function getTestsBySessionLab(): array
+{
+    $userId = session()->get('user_id');
+
+    // Get lab id from labs table where user_id = session user
+    $db  = \Config\Database::connect();
+    $lab = $db->table('labs')->where('user_id', $userId)->get()->getRowArray();
+
+    if (!$lab) return [];
+
+    return $this->where('lab_id', $lab['id'])->findAll();
+}
 }

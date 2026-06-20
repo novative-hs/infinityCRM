@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HealthCRM - Lab Registration</title>
+  <title>Infinity+ - Lab Registration</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 <?= view('templates/header', ['pageTitle' => 'Lab Registration', 'activePage' => 'register']) ?>
@@ -56,7 +56,7 @@
         <div class="row">
 
           <div class="col-md-6 mb-3">
-            <label class="form-label fw-medium">Lab Name</label>
+            <label class="form-label1 fw-medium">Lab Name</label>
             <div class="input-group">
               <span class="input-group-text input-group-text-light"><i class="ti ti-flask"></i></span>
               <input type="text" name="name" class="form-control input-light"
@@ -65,7 +65,7 @@
           </div>
 
           <div class="col-md-6 mb-3">
-            <label class="form-label fw-medium">Contact Person</label>
+            <label class="form-label1 fw-medium">Contact Person</label>
             <div class="input-group">
               <span class="input-group-text input-group-text-light"><i class="ti ti-user"></i></span>
               <input type="text" name="contact_person" class="form-control input-light"
@@ -74,7 +74,7 @@
           </div>
 
           <div class="col-md-6 mb-3">
-  <label class="form-label fw-medium">Email Address</label>
+  <label class="form-label1 fw-medium">Email Address</label>
   <div class="input-group">
     <span class="input-group-text input-group-text-light"><i class="ti ti-mail"></i></span>
     <input type="email" name="email" id="email" class="form-control input-light"
@@ -84,7 +84,7 @@
 </div>
 
          <div class="col-md-6 mb-3">
-  <label class="form-label fw-medium">Phone Number</label>
+  <label class="form-label1 fw-medium">Phone Number</label>
   <div class="input-group">
     <span class="input-group-text input-group-text-light"><i class="ti ti-phone"></i></span>
     <input type="text" name="phone" id="phone" class="form-control input-light"
@@ -94,7 +94,7 @@
 </div>
 
           <div class="col-md-6 mb-3">
-            <label class="form-label fw-medium">License Number</label>
+            <label class="form-label1 fw-medium">License Number</label>
             <div class="input-group">
               <span class="input-group-text input-group-text-light"><i class="ti ti-id-badge-2"></i></span>
               <input type="text" name="license_number" class="form-control input-light"
@@ -103,7 +103,7 @@
           </div>
 
           <div class="col-md-6 mb-3">
-            <label class="form-label fw-medium">Address</label>
+            <label class="form-label1 fw-medium">Address</label>
             <div class="input-group">
               <span class="input-group-text input-group-text-light"><i class="ti ti-map-pin"></i></span>
               <input type="text" name="address" class="form-control input-light"
@@ -112,7 +112,7 @@
           </div>
 
           <!-- <div class="col-md-6 mb-3">
-            <label class="form-label fw-medium">Password</label>
+            <label class="form-label1 fw-medium">Password</label>
             <div class="input-group">
               <span class="input-group-text input-group-text-light"><i class="ti ti-lock"></i></span>
               <input type="password" name="password" id="password" class="form-control input-light"
@@ -124,7 +124,7 @@
           </div>
 
           <div class="col-md-6 mb-3">
-            <label class="form-label fw-medium">Confirm Password</label>
+            <label class="form-label1 fw-medium">Confirm Password</label>
             <div class="input-group">
               <span class="input-group-text input-group-text-light"><i class="ti ti-lock"></i></span>
               <input type="password" name="confirm_password" id="confirm_password" class="form-control input-light"
@@ -135,7 +135,7 @@
             </div>
           </div> -->
 <div class="col-md-6 mb-3">
-  <label class="form-label fw-medium">Password</label>
+  <label class="form-label1 fw-medium">Password</label>
   <div class="input-group">
     <span class="input-group-text input-group-text-light"><i class="ti ti-lock"></i></span>
     <input type="password" name="password" id="password" class="form-control input-light"
@@ -151,7 +151,7 @@
 </div>
 
 <div class="col-md-6 mb-3">
-  <label class="form-label fw-medium">Confirm Password</label>
+  <label class="form-label1 fw-medium">Confirm Password</label>
   <div class="input-group">
     <span class="input-group-text input-group-text-light"><i class="ti ti-lock"></i></span>
     <input type="password" name="confirm_password" id="confirm_password" class="form-control input-light"

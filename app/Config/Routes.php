@@ -62,3 +62,7 @@ $routes->post('booking/updateTests/(:num)', 'BookingController::updateTests/$1')
  $routes->get('booking/invoice/(:num)', 'BookingController::viewInvoice/$1');
 $routes->get('booking/sharedInvoice/(:num)/(:any)', 'BookingController::sharedInvoice/$1/$2');
 $routes->post('booking/generateShareLink/(:num)', 'BookingController::generateShareLink/$1');
+$routes->get('booking/downloadReport/(:num)', 'BookingController::downloadReport/$1');
+$routes->get('booking/invoice/(:num)', 'BookingController::viewInvoice/$1');
+$routes->get('booking/sharedInvoice/(:num)/(:any)', 'BookingController::sharedInvoice/$1/$2');
+$routes->post('booking/generateShareLink/(:num)', 'BookingController::generateShareLink/$1');

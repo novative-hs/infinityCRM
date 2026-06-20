@@ -87,6 +87,3 @@ class CreateBookingHistoryTable extends Migration
         $this->forge->dropTable('booking_status_history', true);
     }
 }
-
-
-

@@ -1,8 +1,7 @@
 <?= view('templates/header', ['pageTitle' => 'Phlebotomist List', 'activePage' => 'lablist']) ?>
 
-<div class="container py-4 flex-grow-1">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <!-- <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
       <h2 class="fw-semibold mb-0" style="color:#134557;"><?= esc($lab['name']) ?></h2>
       <small class="text-muted">Phlebotomist List</small>
@@ -10,8 +9,24 @@
     <a href="<?= base_url('lablist') ?>" class="btn btn-outline-secondary btn-sm">
       <i class="ti ti-arrow-left me-1"></i> Back
     </a>
-  </div>
+  </div> -->
+<div class="container py-4 flex-grow-1">
 
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+    <div class="d-flex align-items-start gap-3 mb-4">
+       
+    
+       <a href="<?= base_url('lablist') ?>" class="btn btn-link btn-sm mt-1 text-secondary" style="text-decoration:none;">
+            <i class="ti ti-arrow-left fs-3"></i>
+       </a>
+             <h2 class="fw-semibold mb-0" style="color:#961914;">Phlebotomist List</h2>
+
+    <div>
+</div>
+</div>
+  </div>
+</div>
   <?php if (session()->getFlashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show py-2 small">
       <?= session()->getFlashdata('success') ?>
@@ -32,6 +47,10 @@
       <button type="button" class="btn text-white" style="background:#134557;"
               data-bs-toggle="modal" data-bs-target="#importListModal">
         <i class="ti ti-upload me-1"></i> Import List
+      </button>
+      <button type="button" class="btn btn-outline-secondary"
+              data-bs-toggle="modal" data-bs-target="#addPhlebotomistModal">
+        <i class="ti ti-user-plus me-1"></i> Add Phlebotomist
       </button>
     </div>
 
@@ -120,14 +139,14 @@
           <?= csrf_field() ?>
           <div class="modal-body pt-4">
             <div class="mb-3">
-              <label class="form-label fw-medium" style="color:#134557;">Full Name</label>
+              <label class="form-label fw-medium" style="color:#134557;background:none">Full Name</label>
               <div class="input-group">
                 <span class="input-group-text"><i class="ti ti-user"></i></span>
                 <input type="text" name="name" class="form-control" placeholder="e.g. Ali Khan" required/>
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-medium" style="color:#134557;">City</label>
+              <label class="form-label fw-medium" style="color:#134557;background:none">City</label>
               <div class="input-group">
                 <span class="input-group-text"><i class="ti ti-map-pin"></i></span>
                 <input type="text" name="city" class="form-control" placeholder="e.g. Rawalpindi"/>

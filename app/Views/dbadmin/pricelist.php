@@ -6,15 +6,15 @@
 
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h2 class="fw-semibold mb-0" style="color:#134557;"><?= esc($lab['name']) ?></h2>
-      <small class="text-muted">
-        <?= $mode === 'update' ? 'Update existing tests (matched by code, new ones added)' : 'Import Price List via Excel' ?>
-      </small>
-    </div>
-    <a href="<?= base_url('lablist') ?>" class="btn btn-outline-secondary btn-sm">
-      <i class="ti ti-arrow-left me-1"></i> Back
-    </a>
+    <div class="d-flex align-items-start gap-3 mb-4">
+       <a href="<?= base_url('lablist') ?>" class="btn btn-link btn-sm mt-1 text-secondary" style="text-decoration:none;">
+            <i class="ti ti-arrow-left fs-3"></i>
+       </a>
+    <div>
+    <h2 class="fw-semibold mb-0" style="color:#0E2C40;"><?= esc($lab['name']) ?></h2>
+   
   </div>
+</div>
 
   <?php if (session()->getFlashdata('success')): ?>
     <div class="alert alert-success py-2 small"><?= session()->getFlashdata('success') ?></div>
