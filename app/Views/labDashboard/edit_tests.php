@@ -125,11 +125,15 @@
                   data-rate="<?= (float)$b['rate'] ?>"
                   data-id="<?= $b['id'] ?>"
                   oninput="refreshExisting(this)">
+                    <div class="disc-warn" style="display:none;color:#dc2626;font-size:.68rem;margin-top:3px;max-width:120px;"></div>
+
               </td>
               <td style="text-align:center">
                 <select class="tbl-sl" name="existing[<?= $b['id'] ?>][payment]">
                   <option value="cash"    <?= $b['payment_method']==='cash'    ? 'selected':'' ?>>Cash</option>
-                  <option value="prepaid" <?= $b['payment_method']==='prepaid' ? 'selected':'' ?>>Prepaid</option>
+                  <option value="online" <?= $b['payment_method']==='online' ? 'selected':'' ?>>Online</option>
+                  <option value="card" <?= $b['payment_method']==='card' ? 'selected':'' ?>>Card</option>
+
                 </select>
               </td>
               <td>
@@ -188,6 +192,8 @@
 </div>
 
 <script>
+  const maxAllowedDiscount = <?= (float) $maxAllowedDiscount ?>;
+
 const ALL_TESTS  = <?= json_encode(array_values(array_map(fn($t) => [
   'id'   => (int)$t['id'],
   'name' => $t['test_name'],
@@ -205,9 +211,32 @@ let   newIdx   = 0;
 const fmt  = n  => 'PKR ' + Math.round(n).toLocaleString('en-PK');
 const calc = (rate, pct) => { const d = Math.round(rate * pct / 100); return { disc: d, pays: rate - d }; };
 
+function clearDiscountWarning(inputEl) {
+  inputEl.classList.remove('is-invalid');
+  inputEl.style.borderColor = '';
+  const warnEl = inputEl.closest('td')?.querySelector('.disc-warn');
+  if (warnEl) {
+    warnEl.style.display = 'none';
+    warnEl.textContent = '';
+  }
+}
 /* ── Existing rows ── */
 function refreshExisting(inp) {
+   clearDiscountWarning(inp);
   const id = inp.dataset.id, rate = +inp.dataset.rate;
+  let proposed = parseFloat(inp.value) || 0;
+  proposed = Math.min(Math.max(proposed, 0), 100);
+
+  const projectedSum = sumOfDiscountPercents(inp, proposed);
+  if (projectedSum > maxAllowedDiscount + 0.01) {
+    inp.value = inp.dataset.lastValid ?? 0;
+    showDiscountLimitWarning(inp,
+      `Max discount limit is ${maxAllowedDiscount}% for this franchise (${projectedSum.toFixed(1)}% would be used across all tests).`);
+  } else {
+    inp.value = proposed;
+    inp.dataset.lastValid = proposed;
+  }
+
   const {disc, pays} = calc(rate, +inp.value || 0);
   document.getElementById('eprice-'+id).textContent = fmt(pays);
   document.getElementById('esave-' +id).textContent = disc > 0 ? 'save '+fmt(disc) : '';
@@ -224,7 +253,7 @@ function toggleDelete(id, rate) {
     btn.classList.remove('undo');
     btn.innerHTML = trashSvg();
     flag.value = '0';
-    bookedIds.add(id); // keep greyed in picker
+    bookedIds.add(id);
   } else {
     toDelete.add(id);
     row.classList.add('row-deleted');
@@ -232,7 +261,7 @@ function toggleDelete(id, rate) {
     btn.innerHTML = undoSvg();
     flag.value = '1';
   }
-  recalc();
+  recalc(); // sum changes either way — deleted rows drop out, undone rows rejoin
 }
 
 /* ── Checklist ── */
@@ -289,11 +318,15 @@ function addSelected() {
           name="new_tests[${idx}][discount]"
           data-rate="${t.rate}" data-nidx="${idx}"
           oninput="refreshNew(this)">
+            <div class="disc-warn" style="display:none;color:#dc2626;font-size:.68rem;margin-top:3px;max-width:120px;"></div>
+
       </td>
       <td style="text-align:center">
         <select class="tbl-sl" name="new_tests[${idx}][payment]">
-          <option value="prepaid">Prepaid</option>
           <option value="cash">Cash</option>
+          <option value="online">Online</option>
+          <option value="card">Card</option>
+
         </select>
       </td>
       <td>
@@ -318,7 +351,21 @@ function addSelected() {
 }
 
 function refreshNew(inp) {
+   clearDiscountWarning(inp);
   const idx = inp.dataset.nidx, rate = +inp.dataset.rate;
+  let proposed = parseFloat(inp.value) || 0;
+  proposed = Math.min(Math.max(proposed, 0), 100);
+
+  const projectedSum = sumOfDiscountPercents(inp, proposed);
+  if (projectedSum > maxAllowedDiscount + 0.01) {
+    inp.value = inp.dataset.lastValid ?? 0;
+    showDiscountLimitWarning(inp,
+      `Max discount limit is ${maxAllowedDiscount}% for this franchise (${projectedSum.toFixed(1)}% would be used across all tests).`);
+  } else {
+    inp.value = proposed;
+    inp.dataset.lastValid = proposed;
+  }
+
   const {disc, pays} = calc(rate, +inp.value || 0);
   document.getElementById('nprice-'+idx).textContent = fmt(pays);
   document.getElementById('nsave-' +idx).textContent = disc > 0 ? 'save '+fmt(disc) : '';
@@ -349,6 +396,17 @@ function recalc() {
   const dr = document.getElementById('sumDiscRow');
   if (disc > 0) { dr.style.display='flex'; document.getElementById('sumDisc').textContent='− '+fmt(disc); }
   else          { dr.style.display='none'; }
+
+  // NEW: discount % used vs. franchise limit
+  const usedPct = sumOfDiscountPercents(null, 0);
+  let pctRow = document.getElementById('sumDiscPctRow');
+  if (!pctRow) {
+    pctRow = document.createElement('div');
+    pctRow.id = 'sumDiscPctRow';
+    pctRow.className = 'sum-row';
+    document.getElementById('sumDiscRow').insertAdjacentElement('afterend', pctRow);
+  }
+  pctRow.innerHTML = `<span>Discount % Used</span><span style="font-weight:600;color:${usedPct > maxAllowedDiscount + 0.01 ? '#dc2626' : '#16a34a'}">${usedPct.toFixed(1)}% / ${maxAllowedDiscount}%</span>`;
 }
 
 function prepareDeleteIds() {
@@ -366,6 +424,34 @@ function undoSvg()  { return `<svg width="13" height="13" viewBox="0 0 24 24" fi
 
 renderList();
 recalc();
+
+function sumOfDiscountPercents(overrideInput, overrideValue) {
+  let total = 0;
+
+  document.querySelectorAll('.e-disc').forEach(inp => {
+    const id = parseInt(inp.dataset.id);
+    if (toDelete.has(id)) return; // being removed, doesn't count
+    const val = (inp === overrideInput) ? overrideValue : (parseFloat(inp.value) || 0);
+    total += val;
+  });
+
+  document.querySelectorAll('.n-disc').forEach(inp => {
+    const val = (inp === overrideInput) ? overrideValue : (parseFloat(inp.value) || 0);
+    total += val;
+  });
+
+  return total;
+}
+function showDiscountLimitWarning(inputEl, message) {
+  inputEl.classList.add('is-invalid');
+  inputEl.style.borderColor = '#dc2626';
+   const warnEl = inputEl.closest('td')?.querySelector('.disc-warn');
+  if (warnEl) {
+    warnEl.textContent = message;
+    warnEl.style.display = 'block';
+  }
+
+}
 </script>
 
 <?= view('templates/footer') ?>

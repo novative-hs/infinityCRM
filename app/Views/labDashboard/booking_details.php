@@ -1,709 +1,5 @@
 <?= view('templates/header', ['pageTitle' => 'Booking Details', 'activePage' => 'lablist']) ?>
 
-<style>
-  .detail-wrap {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 24px 16px 60px;
-  }
-
-  .back-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-  }
-
-  .back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: #374151;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .back-btn:hover {
-    color: #1d4ed8;
-  }
-
-  .page-title {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #111827;
-    margin-top: 4px;
-  }
-
-  .booking-ref {
-    font-size: .75rem;
-    color: #9ca3af;
-    margin-top: 2px;
-  }
-
-  /* Status chip */
-  .status-chip {
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: .78rem;
-    font-weight: 600;
-  }
-
-  .chip-phleb {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-
-  .chip-in-process {
-    background: #fef9c3;
-    color: #854d0e;
-  }
-
-  .chip-arrived {
-    background: #e0f2fe;
-    color: #000;
-  }
-
-  .chip-collected {
-    background: #fde8cc;
-    color: #c76a15;
-  }
-
-  .chip-report {
-    background: #dcfce7;
-    color: #15803d;
-  }
-  
-  .chip-refused {
-    background: #fee2e2;
-    color: #dc2626;
-  }
-
-  /* Card */
-  .d-card {
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #e5e7eb;
-    padding: 22px;
-    margin-bottom: 16px;
-  }
-
-  .d-card-title {
-    font-size: .9rem;
-    font-weight: 700;
-    color: #111827;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .d-card-title i {
-    color: #6b7280;
-  }
-
-  /* Progress */
-  .progress-bar-wrap {
-    display: flex;
-    align-items: center;
-    margin: 10px 0 8px;
-  }
-
-  .step-dot {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 2px solid #d1d5db;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    z-index: 1;
-  }
-
-  .step-dot.done {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
-  }
-
-  .step-dot.done svg {
-    display: block;
-  }
-
-  .step-dot svg {
-    display: none;
-  }
-
-  .step-connector {
-    flex: 1;
-    height: 3px;
-    background: #d1d5db;
-  }
-
-  .step-connector.done {
-    background: #1d4ed8;
-  }
-
-  .steps-labels {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 6px;
-  }
-
-  .step-lbl {
-    font-size: .65rem;
-    color: #9ca3af;
-    text-align: center;
-    flex: 1;
-  }
-
-  .step-lbl.active {
-    color: #1d4ed8;
-    font-weight: 600;
-  }
-
-  .step-lbl.done-lbl {
-    color: #374151;
-  }
-
-  /* ETA chip */
-  .eta-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 20px;
-    padding: 5px 14px;
-    font-size: .78rem;
-    color: #1d4ed8;
-    font-weight: 500;
-  }
-
-  /* Action button */
-  .action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 16px;
-    padding: 10px 22px;
-    border-radius: 10px;
-    font-size: .85rem;
-    font-weight: 600;
-    text-decoration: none;
-    border: none;
-    cursor: pointer;
-  }
-
-  .action-btn.blue {
-    background: #1d4ed8;
-    color: #fff;
-  }
-
-  .action-btn.green {
-    background: #16a34a;
-    color: #fff;
-  }
-
-  .action-btn.orange {
-    background: #f59e0b;
-    color: #fff;
-  }
-
-  .action-btn:hover {
-    opacity: .9;
-  }
-
-  /* Info rows */
-  .info-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-
-  .info-icon {
-    color: #9ca3af;
-    margin-top: 1px;
-    flex-shrink: 0;
-  }
-
-  .info-label {
-    font-size: .7rem;
-    color: #9ca3af;
-    margin-bottom: 2px;
-    letter-spacing: .03em;
-  }
-
-  .info-val {
-    font-size: .92rem;
-    color: #111827;
-    font-weight: 500;
-  }
-
-  /* Instructions card */
-  .inst-card {
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-
-  .inst-title {
-    font-size: .9rem;
-    font-weight: 700;
-    color: #92400e;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .pin-label {
-    font-size: .7rem;
-    font-weight: 700;
-    color: #92400e;
-    letter-spacing: .05em;
-    margin-bottom: 4px;
-  }
-
-  .pin-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: .82rem;
-    color: #d97706;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .notes-label {
-    font-size: .7rem;
-    font-weight: 700;
-    color: #92400e;
-    letter-spacing: .05em;
-    margin-top: 12px;
-    margin-bottom: 4px;
-  }
-
-  .notes-val {
-    font-size: .88rem;
-    color: #374151;
-  }
-
-  .edit-link {
-    font-size: .78rem;
-    color: #9ca3af;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .edit-link:hover {
-    color: #1d4ed8;
-  }
-
-  /* Phlebotomist card */
-  .phleb-card {
-    background: #f0f7ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-
-  .phleb-title {
-    font-size: .9rem;
-    font-weight: 700;
-    color: #1e40af;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-
-  .phleb-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
-  .phleb-label {
-    font-size: .7rem;
-    color: #6b7280;
-    margin-bottom: 2px;
-  }
-
-  .phleb-val {
-    font-size: .95rem;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .phleb-val.blue {
-    color: #1d4ed8;
-  }
-
-  /* Tests table */
-  .tests-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: .83rem;
-  }
-
-  .tests-table th {
-    color: #9ca3af;
-    font-weight: 600;
-    padding: 8px 10px;
-    border-bottom: 1px solid #f3f4f6;
-    font-size: .7rem;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-  }
-
-  .tests-table td {
-    padding: 12px 10px;
-    border-bottom: 1px solid #f9fafb;
-    color: #111827;
-    vertical-align: top;
-  }
-
-  .tests-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  .save-txt {
-    color: #16a34a;
-    font-size: .75rem;
-    margin-top: 2px;
-  }
-
-  .price-txt {
-    font-weight: 600;
-  }
-
-  /* Financials */
-  .fin-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: .87rem;
-    color: #374151;
-    margin-bottom: 10px;
-  }
-
-  .fin-row.total-row {
-    font-weight: 700;
-    font-size: 1rem;
-    color: #111827;
-    border-top: 1px solid #e5e7eb;
-    padding-top: 12px;
-    margin-top: 4px;
-  }
-
-  .fin-row .disc {
-    color: #dc2626;
-    font-weight: 500;
-  }
-
-  .view-invoice {
-    font-size: .78rem;
-    color: #1d4ed8;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  /* History */
-  .history-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .history-list li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid #f9fafb;
-    font-size: .83rem;
-  }
-
-  .history-list li:last-child {
-    border-bottom: none;
-  }
-
-  .h-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .h-dot.in-process {
-    background: #fbbf24;
-  }
-
-  .h-dot.phlebotomist-assigned {
-    background: #93c5fd;
-  }
-
-  .h-dot.arrived {
-    background: #a78bfa;
-  }
-
-  .h-dot.sample-collected {
-    background: #f87171;
-  }
-
-  .h-dot.report-ready {
-    background: #34d399;
-  }
-
-  .h-badge {
-    padding: 3px 10px;
-    border-radius: 10px;
-    font-size: .72rem;
-    font-weight: 600;
-  }
-
-  .h-badge.in-process {
-    background: #fef9c3;
-    color: #854d0e;
-  }
-
-  .h-badge.phlebotomist-assigned {
-    background: #dbeafe;
-    color: #1e40af;
-  }
-
-  .h-badge.arrived {
-    background: #ede9fe;
-    color: #5b21b6;
-  }
-
-  .h-badge.sample-collected {
-    background: #fde8cc;
-    color: #c76a15;
-  }
-
-  .h-badge.report-ready {
-    background: #dcfce7;
-    color: #15803d;
-  }
-
-  .h-time {
-    margin-left: auto;
-    color: #9ca3af;
-    font-size: .75rem;
-    white-space: nowrap;
-  }
-
-  .footer-meta {
-    font-size: .75rem;
-    color: #9ca3af;
-    text-align: center;
-    margin-top: 12px;
-  }
-
-  /* Upload Reports Section */
-  .upload-card {
-    border: 2px dashed #3b82f6;
-    background: #f0f9ff;
-  }
-
-  .upload-card .d-card-title {
-    color: #1e40af;
-  }
-
-  .upload-progress {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #e5e7eb;
-  }
-
-  .upload-progress-bar {
-    width: 100%;
-    height: 6px;
-    background: #e5e7eb;
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .upload-progress-fill {
-    height: 100%;
-    background: #3b82f6;
-    transition: width 0.3s;
-  }
-
-  .test-checkbox-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .test-checkbox-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    font-size: .82rem;
-    cursor: pointer;
-  }
-
-  .test-checkbox-item.uploaded {
-    opacity: 0.6;
-    background: #f3f4f6;
-  }
-
-  .test-checkbox-item input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-  }
-
-  .test-checkbox-item .check-label {
-    flex: 1;
-    color: black;
-  }
-
-  .test-checkbox-item .uploaded-badge {
-    color: #16a34a;
-    font-size: .7rem;
-  }
-
-  .file-upload-input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: .85rem;
-    color: black;
-  }
-
-  .file-upload-hint {
-    font-size: .7rem;
-    color: #9ca3af;
-    margin-top: 4px;
-  }
-
-  /* Activity Log Styles */
-  .activity-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .activity-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid #f3f4f6;
-  }
-
-  .activity-list li:last-child {
-    border-bottom: none;
-  }
-
-  .activity-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: .7rem;
-    font-weight: 700;
-  }
-
-  .activity-icon.lab {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-
-  .activity-icon.agent {
-    background: #fef3c7;
-    color: #d97706;
-  }
-
-  .activity-icon.system {
-    background: #e5e7eb;
-    color: #6b7280;
-  }
-
-  .activity-content {
-    flex: 1;
-  }
-
-  .activity-title {
-    font-size: .85rem;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  .activity-desc {
-    font-size: .78rem;
-    color: #6b7280;
-    margin-top: 1px;
-  }
-
-  .activity-time {
-    font-size: .72rem;
-    color: #9ca3af;
-    white-space: nowrap;
-    margin-top: 2px;
-  }
-
-  .activity-badge {
-    display: inline-block;
-    font-size: .6rem;
-    font-weight: 600;
-    padding: 1px 8px;
-    border-radius: 10px;
-    background: #e5e7eb;
-    color: #6b7280;
-    margin-left: 6px;
-  }
-
-  .activity-badge.lab {
-    background: #dbeafe;
-    color: #1d4ed8;
-  }
-
-  .activity-badge.agent {
-    background: #fef3c7;
-    color: #d97706;
-  }
-
-  .activity-badge.system {
-    background: #e5e7eb;
-    color: #6b7280;
-  }
-
-  @media(max-width:600px) {
-    .phleb-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .steps-labels .step-lbl {
-      font-size: .55rem;
-    }
-
-    .test-checkbox-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
 
 <div class="detail-wrap">
 
@@ -749,7 +45,8 @@
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          ETA &nbsp;|&nbsp; <?= date('M d, Y, g:i A', strtotime($latestBooking['eta'])) ?>
+          ETA &nbsp;|&nbsp; <?= date('d-M-y, g:i A', strtotime($latestBooking['eta'])) ?>
+
         </div>
       <?php endif; ?>
     </div>
@@ -777,7 +74,7 @@
 
     <!-- Action Buttons -->
     <?php if ($currentStatus === 'In Process'): ?>
-      <button class="action-btn blue" id="assignBtn" onclick="document.getElementById('assignForm').style.display='block'; this.style.display='none';">
+      <button class="action-btn blue" id="assignBtn" onclick="document.getElementById('assignForm').style.display='block'; this.style.display='none'; loadPhlebSchedule();">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
           <circle cx="12" cy="7" r="4" />
@@ -787,31 +84,129 @@
 
       <div id="assignForm" style="display:none; margin-top:16px; background:#f0f7ff; border:1px solid #bfdbfe; border-radius:12px; padding:20px;">
         <div style="font-size:.88rem; font-weight:700; color:#1e40af; margin-bottom:14px;">Phlebotomist Details</div>
+        <!-- phelobotomist graph -->
+        <div id="phlebScheduleCard" style="margin-bottom:14px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px; display:none;">
+  <div style="font-size:.78rem; font-weight:700; color:#374151; margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+    Phlebotomist Schedule
+  </div>
+  <div style="font-size:.7rem; color:#9ca3af; margin-bottom:10px;">
+    Shows existing assigned/arrived visits — use this to avoid double-booking a busy phlebotomist.
+  </div>
+  <div id="phlebScheduleChart"></div>
+  <div id="phlebScheduleEmpty" style="font-size:.78rem; color:#9ca3af; display:none;">
+    No upcoming assignments for this franchise's phlebotomists.
+  </div>
+  <div id="phlebScheduleLoading" style="font-size:.78rem; color:#9ca3af;">Loading schedule…</div>
+</div>
+
         <form action="<?= base_url('booking/assignPhlebotomist/' . $bookingId) ?>" method="post">
           <?= csrf_field() ?>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-            <div>
-              <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
-                Phlebotomist Name <span style="color:red">*</span>
-              </label>
-              <select name="phleb_id" required style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
-                <option value="">— Select —</option>
-                <?php foreach ($phlebotomists as $p): ?>
-                  <option value="<?= $p['id'] ?>"><?= esc($p['name']) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">ETA</label>
-             <input type="datetime-local" name="eta" required style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827;">
-            </div>
-          </div>
+          <!-- Phlebotomist -->
+<div style="margin-bottom:14px;">
+    <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+        Phlebotomist Name <span style="color:red">*</span>
+    </label>
+
+    <select name="phleb_id" id="phleb_id" required
+        style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
+        <option value="" selected disabled>Select phlebotomist</option>
+
+        <?php foreach ($phlebotomists as $p): ?>
+            <option value="<?= esc($p['id']) ?>">
+                <?= esc($p['name']) ?>
+            </option>
+        <?php endforeach; ?>
+
+        <?php if (empty($phlebotomists)): ?>
+            <option value="" disabled>No phlebotomists available for this franchise</option>
+        <?php endif; ?>
+    </select>
+</div>
+
+<!-- ETA Date & Time -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+
+    <div>
+        <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+            ETA Date <span style="color:red">*</span>
+        </label>
+
+        <input type="date"
+               id="eta_date"
+               required
+               style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827;">
+    </div>
+
+    <div>
+        <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+            ETA Time <span style="color:red">*</span>
+        </label>
+
+        <select id="eta_time"
+                required
+                style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
+        </select>
+    </div>
+
+</div>
+
+<!-- Patient Preferred Date & Time -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+
+    <div>
+        <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+            Patient Preferred Date
+        </label>
+
+        <input type="date"
+               id="preferred_eta_date"
+               style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827;">
+    </div>
+
+    <div>
+        <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+            Patient Preferred Time
+        </label>
+
+        <select id="preferred_eta_time"
+                style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
+        </select>
+    </div>
+
+</div>
+<!-- Reporting Time Visibility -->
+<div style="margin-bottom:14px;">
+    <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:8px;">
+        Reporting Time Visibility <span style="color:red">*</span>
+    </label>
+    <div style="display:flex; gap:16px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:.85rem; color:#111827; cursor:pointer;">
+            <input type="radio" name="show_reporting_time" value="1" checked>
+            Show Reporting Time
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:.85rem; color:#111827; cursor:pointer;">
+            <input type="radio" name="show_reporting_time" value="0">
+            Do Not Show Reporting Time
+        </label>
+    </div>
+</div>
+  <!-- Hidden combined fields that actually get submitted -->
+<input type="hidden" name="eta" id="eta_hidden">
+<input type="hidden" name="preferred_eta" id="preferred_eta">
           <div style="display:flex; gap:10px;">
             <button type="submit" class="action-btn blue" style="margin-top:0;">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
+
+              
               Confirm Assignment
             </button>
             <button type="button" class="action-btn" style="margin-top:0; background:#e5e7eb; color:#374151;"
@@ -864,14 +259,23 @@
     <div style="font-size:.88rem; font-weight:700; color:#5b21b6; margin-bottom:14px;">Re-visit Request Details</div>
     <form action="<?= base_url('booking/requestRevisit/' . $latestBooking['id']) ?>" method="post">
       <?= csrf_field() ?>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-        <div>
-          <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
-            Preferred Date & Time <span style="color:red">*</span>
-          </label>
-          <input type="datetime-local" name="revisit_datetime" required
-            style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827;">
-        </div>
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px;">        <!-- NEW -->
+<div>
+  <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+    Preferred Date <span style="color:red">*</span>
+  </label>
+  <input type="date" id="revisit_date" required
+    style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827;">
+</div>
+<div>
+  <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+    Preferred Time <span style="color:red">*</span>
+  </label>
+  <select id="revisit_time" required
+    style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
+  </select>
+</div>
+<input type="hidden" name="revisit_datetime" id="revisit_datetime_hidden">
         <div>
           <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
             Assign Phlebotomist (optional)
@@ -916,70 +320,171 @@
     <?php endif; ?>
   </div>
 
+  <!-- Proof of Payment - relevant from Sample Collected onward -->
+  <?php if (in_array($currentStatus, ['Sample Collected', 'Report Ready'])): ?>
+    <div class="d-card" style="<?= empty($latestBooking['payment_proof_file']) ? 'border:2px dashed #f59e0b; background:#fffbeb;' : '' ?>">
+      <div class="d-card-title" style="<?= empty($latestBooking['payment_proof_file']) ? 'color:#92400e;' : '' ?>">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+        Proof of Payment
+      </div>
+
+      <?php if (!empty($latestBooking['payment_proof_file'])): ?>
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#dcfce7; border-radius:8px; padding:12px 16px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span style="color:#15803d; font-weight:600; font-size:.85rem;">
+              Proof uploaded — received by
+              <?= ($latestBooking['payment_received_by'] ?? '') === 'main_branch' ? 'Main Branch' : 'Franchise' ?>
+            </span>
+          </div>
+          <a href="<?= base_url('booking/viewPaymentProof/' . $bookingId) ?>" target="_blank"
+            style="color:#1d4ed8; font-size:.82rem; font-weight:600; text-decoration:none; display:flex; align-items:center; gap:4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            View
+          </a>
+        </div>
+      <?php else: ?>
+        <p style="color:#92400e; font-size:.85rem; margin-bottom:14px;">
+          Upload proof of payment, select the payment method, then confirm below — this will upload the proof
+          <strong>and</strong> mark all tests for this booking as paid in one step.
+        </p>
+        <form action="<?= base_url('booking/uploadProofAndMarkPaid/' . $bookingId) ?>" method="post"
+          enctype="multipart/form-data"
+          onsubmit="return confirm('Upload proof and mark all tests as PAID?');">
+          <?= csrf_field() ?>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+                Payment Method <span style="color:red">*</span>
+              </label>
+              <select name="payment_method" required
+                style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
+                <option value="cash">Cash</option>
+                <option value="online">Online</option>
+                <option value="card">Card</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+                Received By <span style="color:red">*</span>
+              </label>
+              <select name="payment_received_by" required
+                style="width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.85rem; color:#111827; background:#fff;">
+                <option value="main_branch">Main Branch</option>
+                <option value="franchise">Franchise</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:.75rem; font-weight:600; color:#374151; display:block; margin-bottom:4px;">
+              Upload Proof (PDF/Image) <span style="color:red">*</span>
+            </label>
+            <input type="file" id="proof_file_input" name="proof_file" accept=".pdf,.jpg,.jpeg,.png" required
+              style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:.85rem; color:#111827;">
+          </div>
+          <button type="submit" id="uploadMarkPaidBtn" class="action-btn" style="background:#16a34a; color:#fff; margin-top:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            Upload &amp; Mark Payment Collected
+          </button>
+        </form>
+      <?php endif; ?>
+    </div>
+  <?php endif; ?>
+
   <!-- Upload Lab Reports - Only show when status is Sample Collected -->
   <?php
   if ($currentStatus === 'Sample Collected'):
     $bookingId = $bookingId ?? $latestBooking['id'] ?? 0;
+
+    if (empty($latestBooking['payment_proof_file'])):
   ?>
-    <div class="d-card upload-card">
-      <div class="d-card-title">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="12" y1="18" x2="12" y2="12" />
-          <line x1="9" y1="15" x2="15" y2="15" />
-        </svg>
-        Upload Lab Reports
-      </div>
-
-      <p style="color:#4b5563; font-size:.85rem; margin-bottom:16px;">
-        Check the tests covered by your report, then upload one PDF. One PDF can cover multiple tests.
-      </p>
-
-      <form action="<?= base_url('booking/uploadReport/' . $bookingId) ?>" method="post" enctype="multipart/form-data" id="uploadReportForm">
-        <?= csrf_field() ?>
-
-        <div style="margin-bottom:16px;">
-          <div style="font-size:.78rem; font-weight:600; color:#374151; margin-bottom:8px;">Select Tests for this Report:</div>
-          <div class="test-checkbox-grid">
-            <?php
-            $uploadedCount = 0;
-            $totalTests = count($testsOrdered);
-            foreach ($testsOrdered as $test):
-              $hasReport = isset($test['has_report']) && $test['has_report'];
-              if ($hasReport) $uploadedCount++;
-            ?>
-              <label class="test-checkbox-item <?= $hasReport ? 'uploaded' : '' ?>">
-                <input type="checkbox" name="test_ids[]" value="<?= $test['booking']['fk_test_id'] ?>"
-                  <?= $hasReport ? 'disabled checked' : '' ?>>
-                <span class="check-label">
-                  <?= esc($test['test']['test_name']) ?> - <?= esc($test['test']['test_code']) ?>
-                </span>
-                <?php if ($hasReport): ?>
-                  <span class="uploaded-badge">✓ Uploaded</span>
-                <?php endif; ?>
-              </label>
-            <?php endforeach; ?>
-          </div>
-        </div>
-
-        <div style="margin-bottom:16px;">
-          <label style="display:block; font-size:.78rem; font-weight:600; color:#374151; margin-bottom:4px;">Upload PDF Report</label>
-          <input type="file" name="report_file" accept=".pdf" required class="file-upload-input" id="reportFile">
-          <div class="file-upload-hint">PDF only, max 10MB. Booking auto-completes when all tests are reported.</div>
-          <div id="fileError" style="color:#dc2626; font-size:.75rem; margin-top:4px; display:none;"></div>
-        </div>
-
-        <button type="submit" class="action-btn blue" id="uploadBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
+      <div class="d-card" style="border:2px dashed #d1d5db; background:#f9fafb;">
+        <div class="d-card-title" style="color:#6b7280;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
           </svg>
-          Upload Report
-        </button>
-      </form>
-    </div>
+          Upload Lab Reports
+        </div>
+        <p style="color:#6b7280; font-size:.85rem; margin:0;">
+          Upload proof of payment first — the report upload will unlock once payment proof is attached.
+        </p>
+      </div>
+    <?php else: ?>
+      <div class="d-card upload-card">
+        <div class="d-card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          Upload Lab Reports
+        </div>
+
+        <p style="color:#4b5563; font-size:.85rem; margin-bottom:16px;">
+          Check the tests covered by your report, then upload one PDF. One PDF can cover multiple tests.
+        </p>
+
+        <form action="<?= base_url('booking/uploadReport/' . $bookingId) ?>" method="post" enctype="multipart/form-data" id="uploadReportForm">
+          <?= csrf_field() ?>
+
+          <div style="margin-bottom:16px;">
+            <div style="font-size:.78rem; font-weight:600; color:#374151; margin-bottom:8px;">Select Tests for this Report:</div>
+            <div class="test-checkbox-grid">
+              <?php
+              $uploadedCount = 0;
+              $totalTests = count($testsOrdered);
+              foreach ($testsOrdered as $test):
+                $hasReport = isset($test['has_report']) && $test['has_report'];
+                if ($hasReport) $uploadedCount++;
+              ?>
+                <label class="test-checkbox-item <?= $hasReport ? 'uploaded' : '' ?>">
+                  <input type="checkbox" name="test_ids[]" value="<?= $test['booking']['fk_test_id'] ?>"
+                    <?= $hasReport ? 'disabled checked' : '' ?>>
+                  <span class="check-label">
+                    <?= esc($test['test']['test_name']) ?> - <?= esc($test['test']['test_code']) ?>
+                  </span>
+                  <?php if ($hasReport): ?>
+                    <span class="uploaded-badge">✓ Uploaded</span>
+                  <?php endif; ?>
+                </label>
+              <?php endforeach; ?>
+            </div>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:.78rem; font-weight:600; color:#374151; margin-bottom:4px;">Upload PDF Report</label>
+            <input type="file" name="report_file" accept=".pdf" required class="file-upload-input" id="reportFile">
+            <div class="file-upload-hint">PDF only, max 10MB. Booking auto-completes when all tests are reported.</div>
+            <div id="fileError" style="color:#dc2626; font-size:.75rem; margin-top:4px; display:none;"></div>
+          </div>
+
+          <button type="submit" class="action-btn blue" id="uploadBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            Upload Report
+          </button>
+        </form>
+      </div>
+    <?php endif; ?>
   <?php endif; ?>
 
   <!-- Patient Info -->
@@ -1054,17 +559,25 @@
         </svg>
         Instructions &amp; Location
       </div>
-      <?php if (!empty($patient['pin_location'])): ?>
-        <div class="pin-label">PIN LOCATION</div>
-        <a href="<?= esc($patient['pin_location']) ?>" target="_blank" class="pin-link">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-          View on Map
-        </a>
-      <?php endif; ?>
+      <?php
+  $pin = trim($patient['pin_location']);
+  if (preg_match('#^https?://#i', $pin)) {
+      // Already a full URL (e.g. saved from Google Maps "share link")
+      $mapUrl = $pin;
+  } else {
+      // Plain address text — build a Google Maps search URL
+      $mapUrl = 'https://www.google.com/maps/search/?api=1&query=' . urlencode($pin);
+  }
+?>
+<a href="<?= esc($mapUrl) ?>" target="_blank" rel="noopener" class="pin-link">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+  View on Map
+</a>
+      
       <div style="margin-top:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <div class="notes-label">NOTES / INSTRUCTIONS</div>
@@ -1114,7 +627,8 @@
         <?php if (!empty($latestBooking['eta'])): ?>
           <div>
             <div class="phleb-label">ETA</div>
-            <div class="phleb-val blue"><?= date('M d, Y, g:i A', strtotime($latestBooking['eta'])) ?></div>
+            <div class="phleb-val blue"><?= date('d-M-y, g:i A', strtotime($latestBooking['eta'])) ?></div>
+
           </div>
         <?php endif; ?>
       </div>
@@ -1224,11 +738,23 @@
       <span>PKR <?= number_format($originalTotal) ?></span>
     </div>
     <?php if ($discountTotal > 0): ?>
+  <?php foreach ($testsOrdered as $item): ?>
+    <?php if (($item['discount_amt'] ?? 0) > 0): ?>
       <div class="fin-row">
-        <span>Discount (<?= $testsOrdered[0]['booking']['discount_percent'] ?? 0 ?>%)</span>
-        <span class="disc">− PKR <?= number_format($discountTotal) ?></span>
+        <span>
+          Discount — <?= esc($item['test']['test_name']) ?>
+          (<?= esc($item['booking']['discount_percent']) ?>%)
+        </span>
+        <span class="disc">− PKR <?= number_format($item['discount_amt']) ?></span>
       </div>
     <?php endif; ?>
+  <?php endforeach; ?>
+
+  <div class="fin-row" style="border-top:1px dashed #e5e7eb; padding-top:8px; font-weight:600;">
+    <span>Total Discount</span>
+    <span class="disc">− PKR <?= number_format($discountTotal) ?></span>
+  </div>
+<?php endif; ?>
     <div class="fin-row total-row">
       <span>Patient Pays</span>
       <span>PKR <?= number_format($patientPays) ?></span>
@@ -1304,7 +830,7 @@
     </div>
 
    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding-top:12px; border-top:1px solid #e5e7eb;">
-    <?php if ($currentStatus === 'Refused' ): ?>
+    <?php if ($currentStatus === 'Refused'): ?>
       <div style="display:flex; align-items:center; gap:8px; color:#dc2626; font-size:.85rem; font-weight:500;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
@@ -1314,16 +840,14 @@
         Patient Refused - No payment collected
       </div>
     <?php elseif (!$isPaid): ?>
-      <form action="<?= base_url('booking/markPaymentPaid/' . $bookingId) ?>" method="post" onsubmit="return confirm('Mark all tests as PAID?');">
-        <?= csrf_field() ?>
-        <button type="submit" style="background:#16a34a; color:#fff; border:none; padding:10px 24px; border-radius:10px; font-size:.85rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-          Mark Cash Collected (<?= $totalTests ?> tests)
-        </button>
-      </form>
+      <div style="display:flex; align-items:center; gap:8px; color:#92400e; font-size:.85rem; font-weight:500; background:#fffbeb; padding:10px 16px; border-radius:10px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        Upload proof of payment above to mark this booking as paid
+      </div>
     <?php else: ?>
       <div style="display:flex; align-items:center; gap:8px; color:#15803d; font-size:.85rem; font-weight:500;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1337,7 +861,8 @@
 
     <?php if ($isPaid && !empty($latestBooking['payment_date'])): ?>
       <div style="margin-top:12px; padding-top:12px; border-top:1px solid #e5e7eb; font-size:.78rem; color:#6b7280;">
-        Paid on: <?= date('M d, Y g:i A', strtotime($latestBooking['payment_date'])) ?>
+        Paid on: <?= date('d-M-y, g:i A', strtotime($latestBooking['payment_date'])) ?>
+
       </div>
     <?php endif; ?>
   </div>
@@ -1379,29 +904,56 @@
       $activityLog[] = $entry;
     }
 
-    // Add report upload entries if any tests have reports
-    foreach ($testsOrdered as $item) {
-      if (isset($item['has_report']) && $item['has_report']) {
-        $activityLog[] = [
-          'title' => 'Report uploaded',
-          'description' => 'Report uploaded for ' . esc($item['test']['test_name']),
-          'time' => $item['booking']['date_updated'] ?? date('Y-m-d H:i:s'),
-          'type' => 'lab',
-        ];
-      }
-    }
+   // Add report upload entries — group by report_file so one PDF covering
+// multiple tests shows as a SINGLE activity entry, not one per test.
+$reportGroups = [];
+foreach ($testsOrdered as $item) {
+    if (!empty($item['has_report'])) {
+        $fileKey = $item['report_file'] ?? ('unknown_' . $item['test']['test_name']);
 
-    // Add payment entries
-    foreach ($testsOrdered as $item) {
-      if (($item['booking']['payment_status'] ?? '') === 'paid') {
-        $activityLog[] = [
-          'title' => 'Payment collected',
-          'description' => 'Payment collected (Cash on visit) — ' . esc($item['test']['test_name']),
-          'time' => $item['booking']['payment_date'] ?? $item['booking']['date_updated'] ?? date('Y-m-d H:i:s'),
-          'type' => 'lab',
-        ];
-      }
+        if (!isset($reportGroups[$fileKey])) {
+            $reportGroups[$fileKey] = [
+                'test_names' => [],
+                'time'       => $item['booking']['date_updated'] ?? date('Y-m-d H:i:s'),
+            ];
+        }
+
+        $reportGroups[$fileKey]['test_names'][] = $item['test']['test_name'];
     }
+}
+
+foreach ($reportGroups as $group) {
+    $activityLog[] = [
+        'title'       => 'Report uploaded',
+        'description' => 'Report uploaded for ' . esc(implode(', ', $group['test_names'])),
+        'time'        => $group['time'],
+        'type'        => 'lab',
+    ];
+}
+
+   // Add ONE payment entry (all tests get paid together, so show a single log line)
+$isFullyPaid = !empty($testsOrdered);
+foreach ($testsOrdered as $item) {
+    if (($item['booking']['payment_status'] ?? '') !== 'paid') {
+        $isFullyPaid = false;
+        break;
+    }
+}
+
+if ($isFullyPaid) {
+    $paymentDate = $testsOrdered[0]['booking']['payment_date']
+        ?? $testsOrdered[0]['booking']['date_updated']
+        ?? date('Y-m-d H:i:s');
+
+    $paymentMethod = ucfirst($testsOrdered[0]['booking']['payment_method'] ?? 'Cash');
+
+    $activityLog[] = [
+        'title'       => 'Payment collected',
+        'description' => 'Payment collected (' . esc($paymentMethod) . ') for all tests in this booking',
+        'time'        => $paymentDate,
+        'type'        => 'lab',
+    ];
+}
 
     // Sort by time descending (newest first)
     usort($activityLog, function($a, $b) {
@@ -1456,7 +1008,8 @@
                 <div class="activity-desc"><?= esc($log['description']) ?></div>
               <?php endif; ?>
               <div class="activity-time">
-                <?= date('M d, Y — g:i A', strtotime($log['time'])) ?>
+                <?= date('d-M-y — g:i A', strtotime($log['time'])) ?>
+
               </div>
             </div>
           </li>
@@ -1494,9 +1047,9 @@
             </span>
           <?php endif; ?>
           <?php if (!empty($h['notes'])): ?>
-            <span style="color:#6b7280;font-size:.75rem;">— <?= esc($h['notes']) ?></span>
+            <span style="color:#6b7280;font-size:.75rem;">— <?= nl2br(esc($h['notes'])) ?></span>
           <?php endif; ?>
-          <span class="h-time"><?= date('M d, Y — g:i A', strtotime($h['changed_at'])) ?></span>
+          <span class="h-time"><?= date('d-M-y — g:i A', strtotime($h['changed_at'])) ?></span>
         </li>
       <?php endforeach; ?>
     </ul>
@@ -1552,38 +1105,54 @@
   </div>
 <?php endif; ?>
       <?php foreach ($reports as $report): ?>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
-          <div>
-            <div style="font-size: .9rem; font-weight: 600; color: #111827;">
-              <?= esc($report['test']['test_name']) ?>
-            </div>
-            <?php if (!empty($report['test']['test_code'])): ?>
-              <div style="font-size: .75rem; color: #9ca3af; margin-top: 2px;">
-                <?= esc($report['test']['test_code']) ?>
-              </div>
-            <?php endif; ?>
-          </div>
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: .85rem; color: #059669; font-weight: 500; background: #d1fae5; padding: 2px 10px; border-radius: 12px;">
-              Report
-            </span>
-            <a href="<?= base_url('booking/downloadReport/' . $report['booking']['id'] ?? '') ?>"
-              style="display: inline-flex; align-items: center; gap: 4px; color: #1d4ed8; text-decoration: none; font-size: .82rem; font-weight: 500;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Download
-            </a>
-          </div>
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
+    <div>
+      <div style="font-size: .9rem; font-weight: 600; color: #111827;">
+        <?= esc($report['test']['test_name']) ?>
+      </div>
+      <?php if (!empty($report['test']['test_code'])): ?>
+        <div style="font-size: .75rem; color: #9ca3af; margin-top: 2px;">
+          <?= esc($report['test']['test_code']) ?>
         </div>
-      <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: .85rem; color: #059669; font-weight: 500; background: #d1fae5; padding: 2px 10px; border-radius: 12px;">
+        Report
+      </span>
+      <a href="<?= base_url('booking/downloadReport/' . ($report['booking']['id'] ?? '')) ?>"
+        style="display: inline-flex; align-items: center; gap: 4px; color: #1d4ed8; text-decoration: none; font-size: .82rem; font-weight: 500;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Download
+      </a>
+
+      <form action="<?= base_url('booking/deleteReport/' . ($report['booking']['id'] ?? '')) ?>" method="post"
+        onsubmit="return confirm('Delete this report? You will need to upload a new one for this test.');"
+        style="margin:0;">
+        <?= csrf_field() ?>
+        <button type="submit" style="display: inline-flex; align-items: center; gap: 4px; color: #dc2626; background:none; border:none; cursor:pointer; text-decoration: none; font-size: .82rem; font-weight: 500; padding:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+          </svg>
+          Delete
+        </button>
+      </form>
+    </div>
+  </div>
+<?php endforeach; ?>
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f3f4f6;">
         <div>
           <div style="font-size: .75rem; color: #9ca3af;">
-            Created: <?= date('M d, Y g:i A', strtotime($latestBooking['date_created'])) ?>
+            Created: <?= date('d-M-y, g:i A', strtotime($latestBooking['date_created'])) ?>
           </div>
           <div style="font-size: .75rem; color: #9ca3af; margin-top: 2px;">
             By: <?= esc($latestBooking['lab_name'] ?? 'INFINITY Lab') ?>
@@ -1601,6 +1170,78 @@
 
 <!-- JavaScript for file upload validation -->
 <script>
+  //revisit
+  populateTimeSelect(document.getElementById('revisit_time')); 
+  const revisitForm = document.querySelector('#revisitForm form');
+if (revisitForm) {
+  revisitForm.addEventListener('submit', function (e) {
+    const dateVal = document.getElementById('revisit_date')?.value;
+    const timeVal = document.getElementById('revisit_time')?.value;
+    const hidden  = document.getElementById('revisit_datetime_hidden');
+
+    if (!dateVal || !timeVal) {
+      e.preventDefault();
+      alert('Please select both preferred date and time.');
+      return false;
+    }
+    hidden.value = `${dateVal} ${timeVal}:00`;
+  });
+}
+// Build a 15-min interval <select> (00:00 -> 23:45), 12-hr display, 24-hr value
+function populateTimeSelect(selectEl) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '<option value="" disabled selected>Select time</option>';
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      const value = `${hh}:${mm}`;
+
+      const period = h < 12 ? 'AM' : 'PM';
+      const displayHour = h % 12 === 0 ? 12 : h % 12;
+      const label = `${displayHour}:${mm} ${period}`;
+
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      selectEl.appendChild(opt);
+    }
+  }
+}
+
+populateTimeSelect(document.getElementById('eta_time'));
+populateTimeSelect(document.getElementById('preferred_eta_time'));
+
+const assignForm = document.querySelector('#assignForm form');
+if (assignForm) {
+  assignForm.addEventListener('submit', function (e) {
+    const etaDateVal = document.getElementById('eta_date')?.value;
+    const etaTimeVal = document.getElementById('eta_time')?.value;
+    const etaHidden  = document.getElementById('eta_hidden');
+
+    if (!etaDateVal || !etaTimeVal) {
+      e.preventDefault();
+      alert('Please select both ETA date and time.');
+      return false;
+    }
+    etaHidden.value = `${etaDateVal} ${etaTimeVal}:00`;
+
+    const prefDateVal = document.getElementById('preferred_eta_date')?.value;
+    const prefTimeVal = document.getElementById('preferred_eta_time')?.value;
+    const prefHidden  = document.getElementById('preferred_eta');
+
+    if (prefDateVal && prefTimeVal) {
+      prefHidden.value = `${prefDateVal} ${prefTimeVal}:00`;
+    } else if (prefDateVal || prefTimeVal) {
+      e.preventDefault();
+      alert('Please fill in both the preferred date and time, or leave both empty.');
+      return false;
+    } else {
+      prefHidden.value = '';
+    }
+  });
+}
+  // patients eta above
   document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('uploadReportForm');
     const fileInput = document.getElementById('reportFile');
@@ -1671,6 +1312,191 @@
     }
   `;
   document.head.appendChild(style);
+
+
+// graph code
+// ---- Phlebotomist ETA schedule (shown while assigning) ----
+const FRANCHISE_ID = <?= (int) ($franchiseId ?? 0) ?>;
+
+function fmtTimeLabel(dateStr) {
+  const d = new Date(dateStr.replace(' ', 'T'));
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const period = h < 12 ? 'AM' : 'PM';
+  h = h % 12 === 0 ? 12 : h % 12;
+  return `${h}:${m} ${period}`;
+}
+
+function fmtDateLabel(dateStr) {
+  const d = new Date(dateStr.replace(' ', 'T'));
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function dateKey(dateStr) {
+  return dateStr.split(' ')[0]; // 'YYYY-MM-DD'
+}
+
+function minutesSinceMidnight(dateStr) {
+  const d = new Date(dateStr.replace(' ', 'T'));
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function renderPhlebSchedule(schedule) {
+  const chartEl = document.getElementById('phlebScheduleChart');
+  const emptyEl = document.getElementById('phlebScheduleEmpty');
+  const loadingEl = document.getElementById('phlebScheduleLoading');
+  loadingEl.style.display = 'none';
+
+  let flat = [];
+  schedule.forEach(p => {
+    p.bookings.forEach(b => {
+      flat.push({
+        date: dateKey(b.eta),
+        phleb_name: p.phleb_name,
+        eta: b.eta,
+        patient_name: b.patient_name,
+        status: b.status,
+      });
+    });
+  });
+
+  if (flat.length === 0) {
+    emptyEl.style.display = 'block';
+    chartEl.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  const byDate = {};
+  flat.forEach(item => {
+    if (!byDate[item.date]) byDate[item.date] = [];
+    byDate[item.date].push(item);
+  });
+  const sortedDates = Object.keys(byDate).sort();
+
+  const statusColor = {
+    'Phlebotomist Assigned': '#1d4ed8',
+    'Arrived': '#7c3aed',
+  };
+
+  const rowHeight = 36;
+  const dateLabelHeight = 26;
+  const topAxisHeight = 30;
+
+  // ---- ONE global time range across ALL dates ----
+  const allMinutesGlobal = flat.map(i => minutesSinceMidnight(i.eta));
+  let minM = Math.max(0, Math.floor((Math.min(...allMinutesGlobal) - 60) / 60) * 60);
+  let maxM = Math.min(24 * 60, Math.ceil((Math.max(...allMinutesGlobal) + 60) / 60) * 60);
+  if (maxM - minM < 120) maxM = minM + 120;
+
+  const rangeHours = (maxM - minM) / 60;
+  const chartWidth = Math.max(500, rangeHours * 70); // scrollable area width only (no left label width now)
+  const xFor = (mins) => ((mins - minM) / (maxM - minM)) * chartWidth;
+
+  // ---- Total height ----
+  let totalHeight = topAxisHeight;
+  sortedDates.forEach(date => {
+    const phlebNames = [...new Set(byDate[date].map(i => i.phleb_name))];
+    totalHeight += dateLabelHeight + phlebNames.length * rowHeight;
+  });
+  totalHeight += 8;
+
+  // ---- Top axis (drawn once, in the scrollable SVG) ----
+  let axisSvg = '';
+  for (let t = minM; t <= maxM; t += 60) {
+    const x = xFor(t);
+    const hour = Math.floor(t / 60);
+    const period = hour < 12 ? 'AM' : 'PM';
+    const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+    axisSvg += `
+      <line x1="${x}" y1="${topAxisHeight}" x2="${x}" y2="${totalHeight - 4}" stroke="#f1f5f9" stroke-width="1"/>
+      <text x="${x}" y="16" font-size="12" fill="#000000" text-anchor="middle">${displayHour}${period}</text>
+    `;
+  }
+
+  // ---- Left labels (HTML, fixed, not scrolled) + dots (SVG, scrolled) ----
+  let y = topAxisHeight;
+  let leftLabelsHtml = `<div style="height:${topAxisHeight}px;"></div>`; // spacer to align with axis
+  let dotsSvg = '';
+
+  sortedDates.forEach(date => {
+    const items = byDate[date];
+    const phlebNames = [...new Set(items.map(i => i.phleb_name))];
+
+    leftLabelsHtml += `
+      <div style="height:${dateLabelHeight}px; display:flex; align-items:flex-end;">
+        <span style="font-size:13px; font-weight:700; color:#1e40af;">${fmtDateLabel(items[0].eta)}</span>
+      </div>
+    `;
+    y += dateLabelHeight;
+
+    phlebNames.forEach(name => {
+      const rowY = y + rowHeight / 2;
+
+      leftLabelsHtml += `
+        <div style="height:${rowHeight}px; display:flex; align-items:center;">
+          <span style="font-size:14px; font-weight:600; color:#374151;">${name}</span>
+        </div>
+      `;
+
+      dotsSvg += `<line x1="0" y1="${rowY}" x2="${chartWidth}" y2="${rowY}" stroke="#f3f4f6" stroke-width="1"/>`;
+
+      items.filter(it => it.phleb_name === name).forEach(it => {
+        const x = xFor(minutesSinceMidnight(it.eta));
+        const color = statusColor[it.status] || '#6b7280';
+        const title = `${it.patient_name} — ${fmtDateLabel(it.eta)}, ${fmtTimeLabel(it.eta)} (${it.status})`;
+        dotsSvg += `
+          <circle cx="${x}" cy="${rowY}" r="6" fill="${color}" stroke="#fff" stroke-width="2">
+            <title>${title}</title>
+          </circle>
+        `;
+      });
+      y += rowHeight;
+    });
+  });
+
+  chartEl.innerHTML = `
+    <div style="display:flex;">
+      <div style="flex-shrink:0; width:110px; padding-right:8px;">
+        ${leftLabelsHtml}
+      </div>
+      <div style="overflow-x:auto; flex:1;">
+        <svg viewBox="0 0 ${chartWidth} ${totalHeight}" style="width:${chartWidth}px; height:auto; overflow:visible;">
+          ${axisSvg}
+          ${dotsSvg}
+        </svg>
+      </div>
+    </div>
+    <div style="display:flex; gap:14px; margin-top:8px; font-size:.7rem; color:#6b7280;">
+      <span style="display:inline-flex; align-items:center; gap:4px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#1d4ed8; display:inline-block;"></span>
+        Assigned
+      </span>
+      <span style="display:inline-flex; align-items:center; gap:4px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#7c3aed; display:inline-block;"></span>
+        Arrived
+      </span>
+    </div>
+  `;
+}
+
+function loadPhlebSchedule() {
+  if (!FRANCHISE_ID) return;
+  const card = document.getElementById('phlebScheduleCard');
+  if (!card) return;
+  card.style.display = 'block';
+
+  fetch(`<?= base_url('booking/phlebotomistSchedule') ?>/${FRANCHISE_ID}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        renderPhlebSchedule(data.schedule);
+      }
+    })
+    .catch(() => {
+      document.getElementById('phlebScheduleLoading').textContent = 'Could not load schedule.';
+    });
+}
 </script>
 
 <?= view('templates/footer') ?>

@@ -8,7 +8,7 @@ class PatientModel extends Model
 {
     protected $table         = 'patients';
     protected $primaryKey    = 'id';
-    protected $allowedFields = ['patient_name', 'phone_number', 'age', 'gender', 'home_address', 'pin_location', 'instructions'];
+    protected $allowedFields = ['patient_name', 'phone_number', 'age', 'gender', 'home_address', 'pin_location', 'instructions', 'medical_history'];
 
     protected $returnType    = 'array';
     protected $useTimestamps = true;

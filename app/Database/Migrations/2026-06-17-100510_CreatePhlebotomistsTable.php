@@ -13,18 +13,14 @@ public function up()
             'type'           => 'INT',
             'auto_increment' => true,
         ],
-        'lab_id' => [
+        'franchise_id' => [
             'type' => 'INT',
         ],
         'name' => [
             'type'       => 'VARCHAR',
             'constraint' => 150,
         ],
-        'city' => [
-            'type'       => 'VARCHAR',
-            'constraint' => 100,
-            'null'       => true,
-        ],
+       
         'status' => [
             'type'       => 'ENUM',
             'constraint' => ['active', 'inactive'],
@@ -37,7 +33,7 @@ public function up()
     ]);
 
     $this->forge->addPrimaryKey('id');
-    $this->forge->addForeignKey('lab_id', 'labs', 'id', 'CASCADE', 'CASCADE');
+    $this->forge->addForeignKey('franchise_id', 'franchises', 'id', 'CASCADE', 'CASCADE');
     $this->forge->createTable('phlebotomists');
 }
 

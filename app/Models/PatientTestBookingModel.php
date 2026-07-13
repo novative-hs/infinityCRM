@@ -11,6 +11,8 @@ class PatientTestBookingModel extends Model
     protected $allowedFields = [
         'fk_patient_id',
         'fk_test_id',
+        'fk_franchise_id',
+         'booking_person_name',
         'status',
         'eta',
         'discount_percent',
@@ -18,6 +20,8 @@ class PatientTestBookingModel extends Model
         'payment_status',
         'payment_date',
         'phleb_id',
+        'preferred_eta',
+        'reporting_time'
     ];
 
     protected $returnType    = 'array';
@@ -31,7 +35,7 @@ class PatientTestBookingModel extends Model
         'fk_patient_id' => 'required|integer',
         'fk_test_id'    => 'required|integer',
         'status'        => 'required',
-        'payment_method' => 'required|in_list[cash,prepaid]',
+        'payment_method' => 'required|in_list[cash,online,card]',
         'payment_status' => 'required|in_list[paid,unpaid]',
 
     ];
@@ -45,11 +49,13 @@ public function getFilteredBookings(array $filters = []): array
         ->select('
             MIN(ptb.id) as id,
             ptb.fk_patient_id,
+            ptb.fk_franchise_id,
             ptb.status,
             ptb.eta,
             ptb.payment_method,
             ptb.payment_status,
             ptb.date_created,
+            ptb.reporting_time,
             p.patient_name,
             p.phone_number,
             p.age,
@@ -62,6 +68,7 @@ public function getFilteredBookings(array $filters = []): array
         ')
         ->join('patients p', 'p.id = ptb.fk_patient_id', 'left')
         ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+        //->join('franchise f', 'f.id = ptb.fk_franchise_id', 'left')
         ->groupBy('ptb.fk_patient_id, ptb.status, DATE(ptb.date_created)');
 
     // Status filter - include refused if explicitly selected
@@ -76,6 +83,9 @@ public function getFilteredBookings(array $filters = []): array
         $builder->whereNotIn('ptb.status', ['Report Ready', 'Refused']);
     }
 
+    if (!empty($filters['franchise_id'])) {
+    $builder->where('ptb.fk_franchise_id', $filters['franchise_id']);
+}
     if (!empty($filters['search'])) {
         $search = $filters['search'];
         $builder->groupStart()
@@ -123,7 +133,7 @@ public function getFilteredBookings(array $filters = []): array
     }
 
     // Get status counts for dashboard
-   public function getStatusCounts(int $labId = 0): array
+   public function getStatusCounts(int $labId = 0, $franchiseId = null): array
 {
     $db = \Config\Database::connect();
 
@@ -134,6 +144,9 @@ public function getFilteredBookings(array $filters = []): array
 
     if ($labId) {
         $builder->where('lt.lab_id', $labId);
+    }
+    if (!empty($franchiseId)) {
+        $builder->where('ptb.fk_franchise_id', $franchiseId);
     }
 
     $result = $builder->get()->getResultArray();
@@ -167,10 +180,12 @@ public function getFilteredBookings(array $filters = []): array
         $db = \Config\Database::connect();
 
         // First get the booking
-        $booking = $db->table('patient_test_bookings')
-            ->where('id', $bookingId)
-            ->get()
-            ->getRowArray();
+       $booking = $db->table('patient_test_bookings ptb')
+        // ->select('ptb.*, c.name as city_name')
+        ->join('franchises f', 'f.id = ptb.fk_franchises_id', 'left')
+        ->where('ptb.id', $bookingId)
+        ->get()
+        ->getRowArray();
 
         if (!$booking) {
             return null;

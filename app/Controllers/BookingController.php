@@ -11,7 +11,8 @@ use CodeIgniter\HTTP\RedirectResponse;
 use App\Services\WhatsAppService;
 use App\Services\WhatsAppMessages;
 use App\Models\ShareTokenModel;
-
+use App\Models\CityModel;
+use App\Models\FranchiseModel;
 
 class BookingController extends BaseController
 {
@@ -29,9 +30,11 @@ class BookingController extends BaseController
     public function index()
     {
         $testModel = new LabTestModel();
+        $franchises =new FranchiseModel();
         $data = [
             'tests'   => $testModel->getTestsBySessionLab(),
             'genders' => ['Male', 'Female', 'Other'],
+            'franchises' => $franchises ->getFranchisesBySessionLab()
         ];
         return view('Booking/bookingform', $data);
     }
@@ -42,12 +45,14 @@ public function add_booking()
         return redirect()->to('/login');
     }
     $rules = [
+        'booking_person_name' => 'required|regex_match[/^[A-Za-z\s]+$/]',
         'patient_name' => 'required|regex_match[/^[A-Za-z\s]+$/]',
         'phone_number' => 'required|max_length[20]',
+        'franchise'           => 'required|integer',
         'home_address' => 'required',
         'age'          => 'permit_empty|numeric',
         'gender'       => 'permit_empty|in_list[Male,Female,Other]',
-        'pin_location' => 'permit_empty|valid_url_strict',
+        'pin_address' => 'permit_empty|string',
         'tests'        => 'required',
     ];
     if (! $this->validate($rules)) {
@@ -59,10 +64,12 @@ public function add_booking()
 
     $cleanRows = [];
 
+    $bookingPersonName = $this->request->getPost('booking_person_name');
+    $franchiseId        = (int) $this->request->getPost('franchise');
     foreach ($tests as $t) {
         $testId   = (int) ($t['test_id'] ?? 0);
         $discount = (int) ($t['discount'] ?? 0);
-        $payment  = $t['payment'] ?? 'prepaid';
+        $payment  = $t['payment'] ?? 'cash';
 
         if ($testId <= 0) {
             continue;
@@ -70,14 +77,17 @@ public function add_booking()
         if ($discount < 0 || $discount > 100) {
             $discount = 0;
         }
-        if (! in_array($payment, ['cash', 'prepaid'], true)) {
-            $payment = 'prepaid';
+        if (! in_array($payment, ['cash', 'online', 'card'], true)) {
+          $payment = 'cash';
         }
 
         $cleanRows[] = [
             'fk_test_id'       => $testId,
             'discount_percent' => $discount,
             'payment_method'   => $payment,
+            'booking_person_name' => $bookingPersonName,
+            'fk_franchise_id'    => $franchiseId,
+           // 'city_id'          => (int) $this->request->getPost('city_id'),
         ];
     }
 
@@ -94,8 +104,10 @@ public function add_booking()
         'age'            => $this->request->getPost('age') ?: null,
         'gender'         => $this->request->getPost('gender'),
         'home_address'   => $this->request->getPost('home_address'),
-        'pin_location'   => $this->request->getPost('pin_location'),
+        'pin_location'   => $this->request->getPost('pin_address'),
         'instructions'   => $this->request->getPost('instructions'),
+        'medical_history'   => $this->request->getPost('medical_history'),
+        
     ], true);
 
     if (! $patientId) {
@@ -107,16 +119,24 @@ public function add_booking()
     }
 
     $now  = date('Y-m-d H:i:s');
+    // $etaDate = $this->request->getPost('eta_date');
+// $etaTime = $this->request->getPost('eta_time');
+// $preferredEta = ($etaDate && $etaTime) ? $etaDate . ' ' . $etaTime . ':00' : null;
+
+
     $rows = array_map(static function (array $row) use ($patientId, $now) {
         return [
             'fk_patient_id'    => $patientId,
             'fk_test_id'       => $row['fk_test_id'],
+            'booking_person_name' => $row['booking_person_name'],
+            'fk_franchise_id'    => $row['fk_franchise_id'],
             'status'           => 'In Process',
             'discount_percent' => $row['discount_percent'],
             'payment_method'   => $row['payment_method'],
             'payment_status'   => 'unpaid',
             'date_created'     => $now,
             'date_updated'     => $now,
+            
         ];
     }, $cleanRows);
 
@@ -138,6 +158,10 @@ public function add_booking()
         } catch (\Exception $e) {
             log_message('error', '[WhatsApp] booking_created failed: ' . $e->getMessage());
         }
+        $this->flashWhatsApp(
+            $this->request->getPost('phone_number'),
+            WhatsAppMessages::forStatus('booking_created', $this->request->getPost('patient_name'))
+        );
 
     // FIX: Get the first inserted ID by querying the database
     $db = \Config\Database::connect();
@@ -159,39 +183,57 @@ public function add_booking()
     return redirect()->to(site_url('labDashboard/dashboard'))
         ->with('success', count($rows) . ' test(s) booked successfully.');
 }
-    public function dashboard()
-    {
-        if (!session()->get('logged_in')) {
-            return redirect()->to('/login');
-        }
-
-        $labId = $this->getLabId(); // ← use helper
-
-        $model = new \App\Models\PatientTestBookingModel();
-        $bookings = [];
-        $counts = ['total' => 0, 'in_process' => 0, 'assigned' => 0, 'arrived' => 0, 'collected' => 0, 'report_ready' => 0];
-
-        $filters = [
-            'status'    => $this->request->getGet('status'),
-            'search'    => $this->request->getGet('search'),
-            'date_from' => $this->request->getGet('date_from'),
-            'date_to'   => $this->request->getGet('date_to'),
-            'lab_id'    => $labId,  // ← from helper
-        ];
-
-        try {
-            $db = \Config\Database::connect();
-            if ($db->tableExists('patient_test_bookings')) {
-                $bookings = $model->getFilteredBookings($filters);
-                $counts   = $model->getStatusCounts($labId);  // ← from helper
-                $model->attachTestDetails($bookings);
-            }
-        } catch (\Exception $e) {
-            log_message('error', 'Dashboard error: ' . $e->getMessage());
-        }
-
-        return view('labDashboard/dashboard', compact('bookings', 'counts', 'filters'));
+   public function dashboard()
+{
+    if (!session()->get('logged_in')) {
+        return redirect()->to('/login');
     }
+
+    $labId = $this->getLabId();
+
+    $model = new \App\Models\PatientTestBookingModel();
+    $franchiseModel = new \App\Models\FranchiseModel();
+    $bookings = [];
+    $counts = ['total' => 0, 'in_process' => 0, 'assigned' => 0, 'arrived' => 0, 'collected' => 0, 'report_ready' => 0];
+
+    $filters = [
+        'status'       => $this->request->getGet('status'),
+        'search'       => $this->request->getGet('search'),
+        'date_from'    => $this->request->getGet('date_from'),
+        'date_to'      => $this->request->getGet('date_to'),
+        'lab_id'       => $labId,
+        'franchise_id' => $this->request->getGet('franchise_id'),
+    ];
+
+   $franchises = [];
+try {
+    $db = \Config\Database::connect();
+    if ($db->tableExists('franchises')) {
+        $franchises = $db->table('franchises f')
+            ->select('f.id, f.contact_number, u.name as name')
+            ->join('users u', 'u.id = f.user_id', 'left')
+            ->where('f.lab_id', $labId)
+            ->where('f.is_deleted', 0)
+            ->get()
+            ->getResultArray();
+    }
+} catch (\Exception $e) {
+    log_message('error', 'Franchise fetch error: ' . $e->getMessage());
+}
+
+    try {
+        $db = \Config\Database::connect();
+        if ($db->tableExists('patient_test_bookings')) {
+            $bookings = $model->getFilteredBookings($filters);
+            $counts   = $model->getStatusCounts($labId, $filters['franchise_id']);
+            $model->attachTestDetails($bookings);
+        }
+    } catch (\Exception $e) {
+        log_message('error', 'Dashboard error: ' . $e->getMessage());
+    }
+
+    return view('labDashboard/dashboard', compact('bookings', 'counts', 'filters', 'franchises'));
+}
 
    public function viewBooking($patientId = null)
 {
@@ -282,14 +324,31 @@ public function add_booking()
     $statusHistory = $historyModel->getHistoryForPatient($patientId);
 
     // Phlebotomists for this lab only
-    $phlebotomists = $labId
-        ? $db->table('phlebotomists')
-            ->where('lab_id', $labId)
-            ->where('status', 'active')
-            ->orderBy('name', 'ASC')
-            ->get()->getResultArray()
-        : [];
+    // $phlebotomists = $labId
+    //     ? $db->table('phlebotomists')
+    //         ->where('lab_id', $labId)
+    //         ->where('status', 'active')
+    //         ->orderBy('name', 'ASC')
+    //         ->get()->getResultArray()
+    //     : [];
+    $booking = $db->table('patient_test_bookings')
+    ->where('id', $bookingId)
+    ->get()
+    ->getRowArray();
 
+$franchiseId = $booking['fk_franchise_id'] ?? null;
+
+$phlebotomists = $franchiseId
+    ? $db->table('phlebotomists ph')
+        ->select('ph.id, ph.name')
+        ->join('franchises f', 'f.id = ph.franchise_id', 'left')
+        ->where('ph.franchise_id', $franchiseId)
+        ->where('f.lab_id', $labId)   // extra safety: ensures franchise belongs to this lab
+        ->where('ph.status', 'active')
+        ->orderBy('ph.name', 'ASC')
+        ->get()
+        ->getResultArray()
+    : [];
     $data = compact(
         'patient',
         'latestBooking',
@@ -302,7 +361,8 @@ public function add_booking()
         'patientPays',
         'statusHistory',
         'bookingId',
-        'phlebotomists'
+        'phlebotomists',
+        'franchiseId'
     );
 
     return view('labDashboard/booking_details', $data);
@@ -358,22 +418,170 @@ public function downloadReport($bookingId = null)
         ->setHeader('Content-Length', (string) filesize($filePath))
         ->setBody(file_get_contents($filePath));
 }
-    public function assignPhlebotomist($bookingId = null)
+public function assignPhlebotomist($bookingId = null)
+{
+    if (!session()->get('logged_in')) {
+        return redirect()->to('/login');
+    }
+
+    if (!$bookingId) {
+        return redirect()->back()->with('error', 'Invalid booking ID');
+    }
+
+    $phlebId           = (int) $this->request->getPost('phleb_id');
+    $eta                = $this->request->getPost('eta') ?: null;
+    $preferredEta       = $this->request->getPost('preferred_eta') ?: null;
+    $reportingTime  = $this->request->getPost('show_reporting_time') === '0' ? 0 : 1; // default to show
+
+    if (!$phlebId) {
+        return redirect()->back()->with('error', 'Please select a phlebotomist.');
+    }
+
+    $db = \Config\Database::connect();
+
+    $booking = $db->table('patient_test_bookings')
+        ->where('id', $bookingId)
+        ->get()->getRowArray();
+
+    if (!$booking) {
+        return redirect()->back()->with('error', 'Booking not found.');
+    }
+
+    $db->table('patient_test_bookings')
+        ->where('fk_patient_id', $booking['fk_patient_id'])
+        ->update([
+            'phleb_id'            => $phlebId,
+            'eta'                 => $eta,
+            'preferred_eta'       => $preferredEta,
+            'reporting_time' => $reportingTime,
+            'status'              => 'Phlebotomist Assigned',
+            'date_updated'        => date('Y-m-d H:i:s'),
+        ]);
+
+    $this->logStatusHistory(
+        $booking['id'],
+        $booking['fk_patient_id'],
+        'Phlebotomist Assigned',
+        'Phlebotomist assigned'
+    );
+
+    $patient = $db->table('patients')
+        ->where('id', $booking['fk_patient_id'])
+        ->get()->getRowArray();
+
+    $phleb = $db->table('phlebotomists')
+        ->where('id', $phlebId)
+        ->get()->getRowArray();
+
+   // --- Notify patient ---
+    try {
+        if ($patient && !empty($patient['phone_number'])) {
+
+            $token = bin2hex(random_bytes(6)); // 12-char random string
+
+            // Check if a row already exists for this booking
+            $existing = $db->table('phlebotomist_locations')
+                ->where('booking_id', $booking['id'])
+                ->get()->getRowArray();
+
+            if ($existing) {
+                $db->table('phlebotomist_locations')
+                    ->where('booking_id', $booking['id'])
+                    ->update(['token' => $token]);
+            } else {
+                $db->table('phlebotomist_locations')->insert([
+                    'booking_id' => $booking['id'],
+                    'token'      => $token,
+                    'lat'        => 0,
+                    'lng'        => 0,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+
+            $trackingUrl = base_url('t/' . $token);
+
+            $whatsapp = new WhatsAppService();
+            $message  = WhatsAppMessages::forStatus(
+                'Phlebotomist Assigned',
+                $patient['patient_name'],
+                [
+                    'phleb_name'   => $phleb['name'] ?? '',
+                    'eta'          => $eta,
+                ]
+            );
+            $whatsapp->sendText($patient['phone_number'], $message);
+            $this->flashWhatsApp($patient['phone_number'], $message, 'wa');
+        }
+    } catch (\Exception $e) {
+        log_message('error', '[WhatsApp] phleb_assigned failed: ' . $e->getMessage());
+    }
+    // --- Notify franchise ---
+    try {
+        if (!empty($booking['fk_franchise_id'])) {
+            $franchise = $db->table('franchises f')
+                ->select('f.contact_number, u.name as franchise_name')
+                ->join('users u', 'u.id = f.user_id', 'left')
+                ->where('f.id', $booking['fk_franchise_id'])
+                ->get()->getRowArray();
+
+        if ($franchise && !empty($franchise['contact_number'])) {
+            $franchiseMessage = WhatsAppMessages::forFranchiseAssignment(
+                $franchise['franchise_name'] ?? 'Franchise',
+                $patient['patient_name'] ?? '',
+                $phleb['name'] ?? '',
+                $eta,
+                $patient['home_address'] ?? ''
+            );
+
+            $whatsappFranchise = new WhatsAppService();
+            $sent = $whatsappFranchise->sendText($franchise['contact_number'], $franchiseMessage);
+
+            if ($sent) {
+                log_message('info', '[WhatsApp] Franchise notified: ' . $franchise['contact_number']);
+            } else {
+                log_message('warning', '[WhatsApp] Franchise API send failed, flashing popup fallback');
+            }
+
+            // Fallback popup — normalized number, separate key
+            $this->flashWhatsApp($franchise['contact_number'], $franchiseMessage, 'wa_franchise');
+        } else {
+            log_message('warning', '[WhatsApp] Franchise ' . $booking['fk_franchise_id'] . ' has no contact_number set.');
+        }
+        }
+    } catch (\Exception $e) {
+        log_message('error', '[WhatsApp] franchise notify failed: ' . $e->getMessage());
+    }
+
+    return redirect()->to('/booking/view/' . $booking['fk_patient_id'])
+        ->with('success', 'Phlebotomist assigned successfully!');
+}
+
+    // Already existing — add 'refused' to the match:
+    public function updateStatus(int $bookingId, string $status): RedirectResponse
     {
         if (!session()->get('logged_in')) {
-            return redirect()->to('/login');
+            return redirect()->to('/login')->with('error', 'Please login to perform this action');
         }
 
-        if (!$bookingId) {
-            return redirect()->back()->with('error', 'Invalid booking ID');
+        $allowed = ['arrived', 'collected', 'refused'];
+        if (!in_array($status, $allowed)) {
+            return redirect()->back()->with('error', 'Invalid status.');
         }
 
-        $phlebId = (int) $this->request->getPost('phleb_id');
-        $eta     = $this->request->getPost('eta') ?: null;
-
-        if (!$phlebId) {
-            return redirect()->back()->with('error', 'Please select a phlebotomist.');
-        }
+        $statusMap = [
+            'arrived' => [
+                'status'  => 'Arrived',
+                'message' => 'Phlebotomist marked as arrived successfully!'
+            ],
+            'collected' => [
+                'status'  => 'Sample Collected',
+                'message' => 'Sample marked as collected successfully!'
+            ],
+            'refused' => [
+                'status'  => 'Refused',
+                'message' => 'Patient marked as refused successfully!'
+            ],
+        ];
 
         $db = \Config\Database::connect();
 
@@ -385,110 +593,36 @@ public function downloadReport($bookingId = null)
             return redirect()->back()->with('error', 'Booking not found.');
         }
 
-        // ← THIS was missing — actually update the status
+        $newStatus = $statusMap[$status]['status'];
+
         $db->table('patient_test_bookings')
             ->where('fk_patient_id', $booking['fk_patient_id'])
             ->update([
-                'phleb_id'     => $phlebId,
-                'eta'          => $eta,
-                'status'       => 'Phlebotomist Assigned',
+                'status'       => $newStatus,
                 'date_updated' => date('Y-m-d H:i:s'),
             ]);
 
         $this->logStatusHistory(
             $booking['id'],
             $booking['fk_patient_id'],
-            'Phlebotomist Assigned',
-            'Phlebotomist assigned'
+            $newStatus,
+            $status === 'refused' ? 'Patient refused' : ''
         );
 
-        try {
-            $patient = $db->table('patients')
-                ->where('id', $booking['fk_patient_id'])
-                ->get()->getRowArray();
-
-            $phleb = $db->table('phlebotomists')
-                ->where('id', $phlebId)
-                ->get()->getRowArray();
-
+        // NEW: WhatsApp for Arrived / Sample Collected
+        if (in_array($newStatus, ['Arrived', 'Sample Collected'])) {
+            $patient = $db->table('patients')->where('id', $booking['fk_patient_id'])->get()->getRowArray();
             if ($patient && !empty($patient['phone_number'])) {
-                $whatsapp = new WhatsAppService();
-                $message  = WhatsAppMessages::forStatus(
-                    'Phlebotomist Assigned',
-                    $patient['patient_name'],
-                    ['phleb_name' => $phleb['name'] ?? '']
+                $this->flashWhatsApp(
+                    $patient['phone_number'],
+                    WhatsAppMessages::forStatus($newStatus, $patient['patient_name'])
                 );
-                $whatsapp->sendText($patient['phone_number'], $message);
             }
-        } catch (\Exception $e) {
-            log_message('error', '[WhatsApp] phleb_assigned failed: ' . $e->getMessage());
         }
 
-
-
         return redirect()->to('/booking/view/' . $booking['fk_patient_id'])
-            ->with('success', 'Phlebotomist assigned successfully!');
+            ->with('success', $statusMap[$status]['message']);
     }
-    // Already existing — add 'refused' to the match:
-    // Already existing — add 'refused' to the match:
-public function updateStatus(int $bookingId, string $status): RedirectResponse
-{
-    if (!session()->get('logged_in')) {
-        return redirect()->to('/login')->with('error', 'Please login to perform this action');
-    }
-
-    $allowed = ['arrived', 'collected', 'refused'];
-    if (!in_array($status, $allowed)) {
-        return redirect()->back()->with('error', 'Invalid status.');
-    }
-
-    $statusMap = [
-        'arrived' => [
-            'status'  => 'Arrived',
-            'message' => 'Phlebotomist marked as arrived successfully!'
-        ],
-        'collected' => [
-            'status'  => 'Sample Collected',
-            'message' => 'Sample marked as collected successfully!'
-        ],
-        'refused' => [
-            'status'  => 'Patient Refused',
-            'message' => 'Patient marked as refused successfully!'
-        ],
-    ];
-
-    $db = \Config\Database::connect();
-
-    // Get any booking row to find patient_id
-    $booking = $db->table('patient_test_bookings')
-        ->where('id', $bookingId)
-        ->get()->getRowArray();
-
-    if (!$booking) {
-        return redirect()->back()->with('error', 'Booking not found.');
-    }
-
-    $newStatus = $statusMap[$status]['status'];
-
-    // Update ALL rows for this patient
-    $db->table('patient_test_bookings')
-        ->where('fk_patient_id', $booking['fk_patient_id'])
-        ->update([
-            'status'       => $newStatus,
-            'date_updated' => date('Y-m-d H:i:s'),
-        ]);
-
-    // Log history
-    $this->logStatusHistory(
-        $booking['id'],
-        $booking['fk_patient_id'],
-        $newStatus,
-        $status === 'refused' ? 'Patient refused' : ''
-    );
-
-    return redirect()->to('/booking/view/' . $booking['fk_patient_id'])
-        ->with('success', $statusMap[$status]['message']);
-}
 
     // Fix requestRevisit:
     public function requestRevisit(int $bookingId): RedirectResponse
@@ -509,35 +643,43 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
 
         $patientId = $booking['fk_patient_id'];
 
+        // Convert datetime-local format ("2026-07-05T21:00") to MySQL format ("2026-07-05 21:00:00")
+        $etaFormatted = null;
+        if ($revisitDatetime) {
+            $etaFormatted = date('Y-m-d H:i:s', strtotime($revisitDatetime));
+        }
+
         // Update ALL rows for this patient
         $updateData = [
             'status'       => 'Phlebotomist Assigned',
             'date_updated' => date('Y-m-d H:i:s'),
         ];
-        if ($revisitDatetime) $updateData['eta']      = $revisitDatetime;
-        if ($phlebId)         $updateData['phleb_id'] = $phlebId;
+        if ($etaFormatted) $updateData['eta']      = $etaFormatted;
+        if ($phlebId)      $updateData['phleb_id'] = $phlebId;
 
         $db->table('patient_test_bookings')
             ->where('fk_patient_id', $patientId)
             ->update($updateData);
 
-        // Log history for all rows
+        // Log ONE clear history entry per row, with reason and ETA on separate lines
         $allRows = $db->table('patient_test_bookings')
             ->where('fk_patient_id', $patientId)
             ->get()->getResultArray();
+
+        $historyNote = 'Re-visit scheduled';
+        if (!empty($notes)) {
+            $historyNote .= "\nReason: " . $notes;
+        }
+        if (!empty($etaFormatted)) {
+            $historyNote .= "\nNew ETA: " . date('d-M-y, g:i A', strtotime($etaFormatted));
+        }
 
         foreach ($allRows as $b) {
             $this->logStatusHistory(
                 $b['id'],
                 $patientId,
-                'Patient Refused',
-                'Re-visit requested: ' . ($notes ?? '')
-            );
-            $this->logStatusHistory(
-                $b['id'],
-                $patientId,
                 'Phlebotomist Assigned',
-                'Re-visit scheduled'
+                $historyNote
             );
         }
 
@@ -586,6 +728,10 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
 
     if (!$booking) {
         return redirect()->back()->with('error', 'Booking not found');
+    }
+
+    if (empty($booking['payment_proof_file'])) {
+        return redirect()->back()->with('error', 'Please upload proof of payment before uploading the lab report.');
     }
 
     $patientId = $booking['fk_patient_id'];
@@ -688,6 +834,7 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
                             $patient['patient_name']
                         );
                         $whatsapp->sendText($patient['phone_number'], $message);
+                        $this->flashWhatsApp($patient['phone_number'], $message);
                     }
                 } catch (\Exception $e) {
                     log_message('error', '[WhatsApp] report_ready failed: ' . $e->getMessage());
@@ -702,54 +849,182 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
     return redirect()->to('/booking/view/' . $patientId)
         ->with('info', $inserted . ' report(s) uploaded. ' . ($totalTests - $reportedCount) . ' more report(s) pending.');
 }
-  public function markPaymentPaid($bookingId = null)
-{
-    if (!session()->get('logged_in')) {
-        return redirect()->to('/login')->with('error', 'Please login to perform this action');
+    public function markPaymentPaid($bookingId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login')->with('error', 'Please login to perform this action');
+        }
+
+        if (!$bookingId) {
+            return redirect()->back()->with('error', 'Invalid booking ID');
+        }
+
+        $db = \Config\Database::connect();
+
+        // Get the booking to find patient_id
+        $booking = $db->table('patient_test_bookings')
+            ->where('id', $bookingId)
+            ->get()
+            ->getRowArray();
+
+        if (!$booking) {
+            return redirect()->back()->with('error', 'Booking not found');
+        }
+
+        if (empty($booking['payment_proof_file'])) {
+            return redirect()->back()->with('error', 'Please upload proof of payment before marking as paid.');
+        }
+
+        $patientId = $booking['fk_patient_id'];
+
+        // Update ALL unpaid test rows for this patient
+        $updated = $db->table('patient_test_bookings')
+            ->where('fk_patient_id', $patientId)
+            ->where('payment_status', 'unpaid')
+            ->update([
+                'payment_status' => 'paid',
+                'payment_date'   => date('Y-m-d H:i:s'),
+                'date_updated'   => date('Y-m-d H:i:s'),
+            ]);
+
+        if (!$updated) {
+            return redirect()->back()->with('error', 'Failed to update payment status');
+        }
+
+        $this->logStatusHistory(
+            $bookingId,
+            $patientId,
+            $booking['status'],
+            'Payment marked as paid (cash collected)'
+        );
+
+        return redirect()->to('/booking/view/' . $patientId)
+            ->with('success', 'Payment marked as paid successfully!');
     }
 
-    if (!$bookingId) {
-        return redirect()->back()->with('error', 'Invalid booking ID');
-    }
+    public function uploadPaymentProof($bookingId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login')->with('error', 'Please login to perform this action');
+        }
 
-    $db = \Config\Database::connect();
+        if (!$bookingId) {
+            return redirect()->back()->with('error', 'Invalid booking ID');
+        }
 
-    // Get the booking to find patient_id
-    $booking = $db->table('patient_test_bookings')
-        ->where('id', $bookingId)
-        ->get()
-        ->getRowArray();
+        $userId = session()->get('user_id') ?? session()->get('id');
+        $labId  = $this->getLabId();
 
-    if (!$booking) {
-        return redirect()->back()->with('error', 'Booking not found');
-    }
-
-    $patientId = $booking['fk_patient_id'];
-
-    // Update ALL unpaid test rows for this patient
-    $updated = $db->table('patient_test_bookings')
-        ->where('fk_patient_id', $patientId)
-        ->where('payment_status', 'unpaid')
-        ->update([
-            'payment_status' => 'paid',
-            'payment_date'   => date('Y-m-d H:i:s'),
-            'date_updated'   => date('Y-m-d H:i:s'),
+        $validation = \Config\Services::validation();
+        $validation->setRules([
+            'payment_method'      => 'required|in_list[cash,online,card]',
+            'payment_received_by' => 'required|in_list[main_branch,franchise]',
+            'proof_file'          => 'uploaded[proof_file]|max_size[proof_file,10240]|ext_in[proof_file,pdf,jpg,jpeg,png]',
         ]);
 
-    if (!$updated) {
-        return redirect()->back()->with('error', 'Failed to update payment status');
+        if (!$validation->withRequest($this->request)->run()) {
+            return redirect()->back()->with('errors', $validation->getErrors());
+        }
+
+        $db = \Config\Database::connect();
+
+        $booking = $db->table('patient_test_bookings ptb')
+            ->select('ptb.*, lt.lab_id')
+            ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+            ->where('ptb.id', $bookingId)
+            ->get()->getRowArray();
+
+        if (!$booking) {
+            return redirect()->back()->with('error', 'Booking not found.');
+        }
+
+        // Safety: this booking's test must belong to the logged-in lab
+        if ($labId && (int) $booking['lab_id'] !== (int) $labId) {
+            return redirect()->back()->with('error', 'Unauthorized.');
+        }
+
+        if (!in_array($booking['status'], ['Sample Collected', 'Report Ready'])) {
+            return redirect()->back()->with('error', 'Payment proof can only be uploaded after sample collection.');
+        }
+
+        $patientId = $booking['fk_patient_id'];
+
+        $file = $this->request->getFile('proof_file');
+        if (!$file->isValid()) {
+            return redirect()->back()->with('error', 'Please upload a valid file.');
+        }
+
+        $newName    = 'proof_' . $patientId . '_' . time() . '_' . uniqid() . '.' . $file->getExtension();
+        $uploadPath = WRITEPATH . 'uploads/payment_proofs/';
+
+        if (!is_dir($uploadPath)) {
+            mkdir($uploadPath, 0777, true);
+        }
+
+        if (!$file->move($uploadPath, $newName)) {
+            return redirect()->back()->with('error', 'Failed to upload file.');
+        }
+
+        $filePath = 'uploads/payment_proofs/' . $newName;
+
+        // Update ALL rows for this patient — same pattern as markPaymentPaid()
+        $db->table('patient_test_bookings')
+            ->where('fk_patient_id', $patientId)
+            ->update([
+                'payment_proof_file'                => $filePath,
+                'payment_method'                    => $this->request->getPost('payment_method'),
+                'payment_received_by'               => $this->request->getPost('payment_received_by'),
+                'payment_proof_uploaded_by_user_id' => $userId,
+                'payment_proof_uploaded_at'         => date('Y-m-d H:i:s'),
+                'date_updated'                      => date('Y-m-d H:i:s'),
+            ]);
+
+        $this->logStatusHistory(
+            $bookingId,
+            $patientId,
+            $booking['status'],
+            'Proof of payment uploaded (received by ' . str_replace('_', ' ', $this->request->getPost('payment_received_by')) . ')'
+        );
+
+        return redirect()->to('/booking/view/' . $patientId)
+            ->with('success', 'Proof of payment uploaded successfully.');
     }
 
-    $this->logStatusHistory(
-        $bookingId,
-        $patientId,
-        $booking['status'],
-        'Payment marked as paid (cash collected)'
-    );
+    public function viewPaymentProof($bookingId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login')->with('error', 'Please login to perform this action');
+        }
 
-    return redirect()->to('/booking/view/' . $patientId)
-        ->with('success', 'Payment marked as paid successfully!');
-}
+        if (!$bookingId) {
+            return redirect()->back()->with('error', 'Invalid booking ID');
+        }
+
+        $db = \Config\Database::connect();
+
+        $booking = $db->table('patient_test_bookings')
+            ->where('id', $bookingId)
+            ->get()->getRowArray();
+
+        if (!$booking || empty($booking['payment_proof_file'])) {
+            return redirect()->back()->with('error', 'Proof of payment not found.');
+        }
+
+        $filePath = WRITEPATH . $booking['payment_proof_file'];
+
+        if (!file_exists($filePath)) {
+            return redirect()->back()->with('error', 'Proof file not found on server.');
+        }
+
+        $ext  = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $mime = $ext === 'pdf' ? 'application/pdf' : 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
+
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
+            ->setBody(file_get_contents($filePath));
+    }
+
     private function logStatusHistory(int $bookingId, int $patientId, string $status, string $notes = '', string $changedBy = ''): void
     {
         // Silently skip if booking_status_history table doesn't exist yet
@@ -767,6 +1042,21 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
             'changed_at' => date('Y-m-d H:i:s'),
         ]);
     }
+
+    private function flashWhatsApp(string $phone, string $message, string $keyPrefix = 'wa'): void
+    {
+        $digits = preg_replace('/\D/', '', $phone ?? '');
+        if (str_starts_with($digits, '0')) {
+            $digits = substr($digits, 1);
+        }
+        if (!str_starts_with($digits, '92')) {
+            $digits = '92' . $digits;
+        }
+
+        session()->setFlashdata($keyPrefix . '_phone', $digits);
+        session()->setFlashdata($keyPrefix . '_message', $message);
+    }
+
     public function saveNotes($patientId = null)
     {
         if (!session()->get('logged_in')) {
@@ -781,7 +1071,7 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
         $db->table('patients')
             ->where('id', $patientId)
             ->update([
-                'instructions' => $this->request->getPost('instructions'),
+                'medical_history' => $this->request->getPost('medical_history'),
                 'updated_at'   => date('Y-m-d H:i:s'),
             ]);
 
@@ -805,7 +1095,7 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
 
         // Current bookings for this patient
         $currentBookings = $db->table('patient_test_bookings ptb')
-            ->select('ptb.id, ptb.fk_test_id, ptb.discount_percent, ptb.payment_method, lt.test_name, lt.test_code, lt.rate')
+            ->select('ptb.id, ptb.fk_test_id, ptb.discount_percent, ptb.payment_method, ptb.fk_franchise_id, lt.test_name, lt.test_code, lt.rate')
             ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
             ->where('ptb.fk_patient_id', $patientId)
             ->orderBy('ptb.date_created', 'ASC')
@@ -815,11 +1105,28 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
         $allTests = $db->table('lab_tests')
             ->orderBy('test_name', 'ASC')
             ->get()->getResultArray();
+        $franchiseId = null;
+            foreach ($currentBookings as $b) {
+                if (!empty($b['fk_franchise_id'])) {
+                    $franchiseId = $b['fk_franchise_id'];
+                    break;
+                }
+            }
 
+        $maxAllowedDiscount = 100; // fallback: no cap if we can't determine franchise
+        if ($franchiseId) {
+            $franchise = $db->table('franchises')
+                ->where('id', $franchiseId)
+                ->get()->getRowArray();
+            if ($franchise && isset($franchise['discount'])) {
+                $maxAllowedDiscount = (float) $franchise['discount'];
+            }
+        }
         return view('labDashboard/edit_tests', [
             'patient'         => $patient,
             'currentBookings' => $currentBookings,
             'allTests'        => $allTests,
+             'maxAllowedDiscount' => $maxAllowedDiscount,
         ]);
     }
 
@@ -840,7 +1147,37 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
                 ->where('fk_patient_id', $patientId)  // safety check
                 ->delete();
         }
+        $newTests       = $this->request->getPost('new_tests') ?? [];
+    $existingUpdates = $this->request->getPost('existing') ?? [];
+        $existingBooking = $db->table('patient_test_bookings')
+            ->where('fk_patient_id', $patientId)
+            ->orderBy('date_created', 'ASC')
+            ->get()->getRowArray();
 
+    $franchiseId       = $existingBooking['fk_franchise_id'] ?? null;
+     $maxAllowedDiscount = 100;
+    if ($franchiseId) {
+        $franchise = $db->table('franchises')->where('id', $franchiseId)->get()->getRowArray();
+        if ($franchise && isset($franchise['discount'])) {
+            $maxAllowedDiscount = (float) $franchise['discount'];
+        }
+    }
+
+    // NEW: sum discount % across all surviving rows (existing not being deleted + new)
+    $totalDiscount = 0;
+    foreach ($existingUpdates as $rowId => $vals) {
+        if (in_array($rowId, $deleteIds)) continue;
+        $totalDiscount += (int) ($vals['discount'] ?? 0);
+    }
+    foreach ($newTests as $t) {
+        $totalDiscount += (int) ($t['discount'] ?? 0);
+    }
+
+    if ($totalDiscount > $maxAllowedDiscount + 0.01) {
+        return redirect()->back()->with('error',
+            "Total discount ({$totalDiscount}%) exceeds this franchise's limit of {$maxAllowedDiscount}%. Please adjust before saving.");
+    }
+    $bookingPersonName = $existingBooking['booking_person_name'] ?? null;
         // New tests to add
         $newTests = $this->request->getPost('new_tests') ?? [];
         $insertRows = [];
@@ -848,15 +1185,17 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
         foreach ($newTests as $t) {
             $testId   = (int)($t['test_id'] ?? 0);
             $discount = (int)($t['discount'] ?? 0);
-            $payment  = $t['payment'] ?? 'prepaid';
+            $payment  = $t['payment'] ?? 'cash';
 
             if ($testId <= 0) continue;
             if ($discount < 0 || $discount > 100) $discount = 0;
-            if (!in_array($payment, ['cash', 'prepaid'], true)) $payment = 'prepaid';
+            if (!in_array($payment, ['cash', 'card', 'online'], true)) $payment = 'cash';
 
             $insertRows[] = [
                 'fk_patient_id'    => $patientId,
                 'fk_test_id'       => $testId,
+                'fk_franchise_id'     => $franchiseId,       
+                'booking_person_name' => $bookingPersonName,
                 'status'           => 'In Process',
                 'discount_percent' => $discount,
                 'payment_method'      => $payment,
@@ -867,20 +1206,20 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
         }
 
         if (!empty($insertRows)) {
-    if (!$bookingModel->insertBatch($insertRows)) {
-        log_message('error', 'insertBatch failed: ' . json_encode($bookingModel->errors()));
-        return redirect()->back()->with('error', 'Failed to add new tests: ' . implode(', ', $bookingModel->errors() ?? []));
-    }
-}
+            if (!$bookingModel->insertBatch($insertRows)) {
+                log_message('error', 'insertBatch failed: ' . json_encode($bookingModel->errors()));
+                return redirect()->back()->with('error', 'Failed to add new tests: ' . implode(', ', $bookingModel->errors() ?? []));
+            }
+        }
 
         // Update existing rows (discount / payment changes)
         $existingUpdates = $this->request->getPost('existing') ?? [];
         foreach ($existingUpdates as $rowId => $vals) {
             $discount = (int)($vals['discount'] ?? 0);
-            $payment  = $vals['payment'] ?? 'prepaid';
+            $payment  = $vals['payment'] ?? 'cash';
 
             if ($discount < 0 || $discount > 100) $discount = 0;
-            if (!in_array($payment, ['cash', 'prepaid'], true)) $payment = 'prepaid';
+            if (!in_array($payment, ['cash', 'card','online'], true)) $payment = 'cash';
 
             $bookingModel->where('id', (int)$rowId)
                 ->where('fk_patient_id', $patientId)
@@ -892,90 +1231,90 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
             ->with('success', 'Tests updated successfully.');
     }
     public function viewInvoice($bookingId)
-{
-    // Check if user is logged in
-    if (!session()->get('logged_in')) {
-        return redirect()->to('/login')->with('error', 'Please login to view invoice');
-    }
-
-    $db = \Config\Database::connect();
-    $patientModel = new PatientModel();
-    
-    // Get the specific booking record
-    $booking = $db->table('patient_test_bookings')
-        ->where('id', $bookingId)
-        ->get()
-        ->getRowArray();
-    
-    if (!$booking) {
-        return redirect()->back()->with('error', 'Invoice not found');
-    }
-    
-    // Get patient
-    $patient = $patientModel->find($booking['fk_patient_id']);
-    
-    // Get ALL tests for this patient on the same date with lab details
-    // Join labs table to get user_id, then join users table to get lab name
-    $tests = $db->table('patient_test_bookings ptb')
-        ->select('
-            ptb.*,
-            lt.test_name,
-            lt.test_code,
-            lt.rate as rack_rate,
-            lt.reporting_time,
-            u.name as lab_name,
-            l.address as lab_address,
-            l.phone as lab_phone,
-            (lt.rate * ptb.discount_percent / 100) as discount_amt,
-            (lt.rate - (lt.rate * ptb.discount_percent / 100)) as patient_price
-        ')
-        ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
-        ->join('labs l', 'l.id = lt.lab_id', 'left')
-        ->join('users u', 'u.id = l.user_id', 'left')  // Join users table to get lab name
-        ->where('ptb.fk_patient_id', $booking['fk_patient_id'])
-        ->where('DATE(ptb.date_created)', date('Y-m-d', strtotime($booking['date_created'])))
-        ->get()
-        ->getResultArray();
-    
-    // Calculate financials
-    $originalTotal = 0;
-    $discountTotal = 0;
-    $patientPays = 0;
-    $labName = '';
-    $labAddress = '';
-    $labPhone = '';
-    
-    foreach ($tests as $test) {
-        $originalTotal += (float)($test['rack_rate'] ?? 0);
-        $discountTotal += (float)($test['discount_amt'] ?? 0);
-        $patientPays += (float)($test['patient_price'] ?? 0);
-        if (empty($labName) && !empty($test['lab_name'])) {
-            $labName = $test['lab_name'];
-            $labAddress = $test['lab_address'] ?? '';
-            $labPhone = $test['lab_phone'] ?? '';
+    {
+        // Check if user is logged in
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/login')->with('error', 'Please login to view invoice');
         }
-    }
-    
-    $data = [
-        'booking' => $booking,
-        'patient' => $patient,
-        'tests' => $tests,
-        'labName' => $labName,
-        'labAddress' => $labAddress,
-        'labPhone' => $labPhone,
-        'originalTotal' => $originalTotal,
-        'discountTotal' => $discountTotal,
-        'patientPays' => $patientPays,
-        'invoiceNumber' => 'INV-' . str_pad($booking['fk_patient_id'], 6, '0', STR_PAD_LEFT) . '-' . date('Ymd', strtotime($booking['date_created'])),
-        'issuedDate' => date('d M Y', strtotime($booking['date_created'])),
-        'isShared' => false,
-        'shareToken' => null
-    ];
-    
-    return view('labDashboard/invoice', $data);
-}
 
- public function generateShareLink($bookingId)
+        $db = \Config\Database::connect();
+        $patientModel = new PatientModel();
+        
+        // Get the specific booking record
+        $booking = $db->table('patient_test_bookings')
+            ->where('id', $bookingId)
+            ->get()
+            ->getRowArray();
+        
+        if (!$booking) {
+            return redirect()->back()->with('error', 'Invoice not found');
+        }
+        
+        // Get patient
+        $patient = $patientModel->find($booking['fk_patient_id']);
+        
+        // Get ALL tests for this patient on the same date with lab details
+        // Join labs table to get user_id, then join users table to get lab name
+        $tests = $db->table('patient_test_bookings ptb')
+            ->select('
+                ptb.*,
+                lt.test_name,
+                lt.test_code,
+                lt.rate as rack_rate,
+                lt.reporting_time,
+                u.name as lab_name,
+                l.address as lab_address,
+                l.phone as lab_phone,
+                (lt.rate * ptb.discount_percent / 100) as discount_amt,
+                (lt.rate - (lt.rate * ptb.discount_percent / 100)) as patient_price
+            ')
+            ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+            ->join('labs l', 'l.id = lt.lab_id', 'left')
+            ->join('users u', 'u.id = l.user_id', 'left')  // Join users table to get lab name
+            ->where('ptb.fk_patient_id', $booking['fk_patient_id'])
+            ->where('DATE(ptb.date_created)', date('Y-m-d', strtotime($booking['date_created'])))
+            ->get()
+            ->getResultArray();
+        
+        // Calculate financials
+        $originalTotal = 0;
+        $discountTotal = 0;
+        $patientPays = 0;
+        $labName = '';
+        $labAddress = '';
+        $labPhone = '';
+        
+        foreach ($tests as $test) {
+            $originalTotal += (float)($test['rack_rate'] ?? 0);
+            $discountTotal += (float)($test['discount_amt'] ?? 0);
+            $patientPays += (float)($test['patient_price'] ?? 0);
+            if (empty($labName) && !empty($test['lab_name'])) {
+                $labName = $test['lab_name'];
+                $labAddress = $test['lab_address'] ?? '';
+                $labPhone = $test['lab_phone'] ?? '';
+            }
+        }
+        
+        $data = [
+            'booking' => $booking,
+            'patient' => $patient,
+            'tests' => $tests,
+            'labName' => $labName,
+            'labAddress' => $labAddress,
+            'labPhone' => $labPhone,
+            'originalTotal' => $originalTotal,
+            'discountTotal' => $discountTotal,
+            'patientPays' => $patientPays,
+            'invoiceNumber' => 'INV-' . str_pad($booking['fk_patient_id'], 6, '0', STR_PAD_LEFT) . '-' . date('Ymd', strtotime($booking['date_created'])),
+            'issuedDate' => date('d M Y', strtotime($booking['date_created'])),
+            'isShared' => false,
+            'shareToken' => null
+        ];
+        
+        return view('labDashboard/invoice', $data);
+    }
+
+    public function generateShareLink($bookingId)
     {
         // Check if user is logged in
         if (!session()->get('logged_in')) {
@@ -1006,105 +1345,380 @@ public function updateStatus(int $bookingId, string $status): RedirectResponse
     }
 
 
+    public function sharedInvoice($bookingId, $token = null)
+    {
+        // Validate token
+        if (!$token) {
+            return redirect()->to('/login')->with('error', 'Invalid share link');
+        }
+        
+        // Check token in database
+        $shareModel = new ShareTokenModel();
+        $shareRecord = $shareModel->where('booking_id', $bookingId)
+                                ->where('token', $token)
+                                ->where('expires_at >', date('Y-m-d H:i:s'))
+                                ->first();
+        
+        if (!$shareRecord) {
+            return redirect()->to('/login')->with('error', 'Share link has expired or is invalid');
+        }
+        
+        // Fetch booking data
+        $db = \Config\Database::connect();
+        $patientModel = new PatientModel();
+        
+        $booking = $db->table('patient_test_bookings')
+            ->where('id', $bookingId)
+            ->get()
+            ->getRowArray();
+        
+        if (!$booking) {
+            return redirect()->to('/login')->with('error', 'Invoice not found');
+        }
+        
+        $patient = $patientModel->find($booking['fk_patient_id']);
+        
+        // Get ALL tests for this patient on the same date with lab details
+        // Join labs table to get user_id, then join users table to get lab name
+        $tests = $db->table('patient_test_bookings ptb')
+            ->select('
+                ptb.*,
+                lt.test_name,
+                lt.test_code,
+                lt.rate as rack_rate,
+                lt.reporting_time,
+                u.name as lab_name,
+                l.address as lab_address,
+                l.phone as lab_phone,
+                (lt.rate * ptb.discount_percent / 100) as discount_amt,
+                (lt.rate - (lt.rate * ptb.discount_percent / 100)) as patient_price
+            ')
+            ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+            ->join('labs l', 'l.id = lt.lab_id', 'left')
+            ->join('users u', 'u.id = l.user_id', 'left')  // Join users table to get lab name
+            ->where('ptb.fk_patient_id', $booking['fk_patient_id'])
+            ->where('DATE(ptb.date_created)', date('Y-m-d', strtotime($booking['date_created'])))
+            ->get()
+            ->getResultArray();
+        
+        $originalTotal = 0;
+        $discountTotal = 0;
+        $patientPays = 0;
+        $labName = '';
+        $labAddress = '';
+        $labPhone = '';
+        
+        foreach ($tests as $test) {
+            $originalTotal += (float)($test['rack_rate'] ?? 0);
+            $discountTotal += (float)($test['discount_amt'] ?? 0);
+            $patientPays += (float)($test['patient_price'] ?? 0);
+            if (empty($labName) && !empty($test['lab_name'])) {
+                $labName = $test['lab_name'];
+                $labAddress = $test['lab_address'] ?? '';
+                $labPhone = $test['lab_phone'] ?? '';
+            }
+        }
+        
+        // Increment view count
+        $shareModel->update($shareRecord['id'], [
+            'view_count' => ($shareRecord['view_count'] ?? 0) + 1
+        ]);
+        
+        $data = [
+            'booking' => $booking,
+            'patient' => $patient,
+            'tests' => $tests,
+            'labName' => $labName,
+            'labAddress' => $labAddress,
+            'labPhone' => $labPhone,
+            'originalTotal' => $originalTotal,
+            'discountTotal' => $discountTotal,
+            'patientPays' => $patientPays,
+            'invoiceNumber' => 'INV-' . str_pad($booking['fk_patient_id'], 6, '0', STR_PAD_LEFT) . '-' . date('Ymd', strtotime($booking['date_created'])),
+            'issuedDate' => date('d M Y', strtotime($booking['date_created'])),
+            'isShared' => true,
+            'shareToken' => $token
+        ];
+        
+        return view('labDashboard/invoice', $data);
+    }
 
+    public function phlebotomistSchedule($franchiseId = null)
+    {
+        if (!session()->get('logged_in')) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Unauthorized'])->setStatusCode(401);
+        }
 
-public function sharedInvoice($bookingId, $token = null)
+        if (!$franchiseId) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid franchise']);
+        }
+
+        $labId = $this->getLabId();
+        $db = \Config\Database::connect();
+
+        $rows = $db->table('patient_test_bookings ptb')
+            ->select('ph.id as phleb_id, ph.name as phleb_name, ptb.eta, ptb.status, p.patient_name, ptb.fk_patient_id')
+            ->join('phlebotomists ph', 'ph.id = ptb.phleb_id', 'inner')
+            ->join('franchises f', 'f.id = ph.franchise_id', 'left')
+            ->join('patients p', 'p.id = ptb.fk_patient_id', 'left')
+            ->where('ph.franchise_id', $franchiseId)
+            ->where('ph.status', 'active') 
+            ->where('f.lab_id', $labId)
+            ->whereIn('ptb.status', ['Phlebotomist Assigned', 'Arrived'])
+            ->where('ptb.eta IS NOT NULL', null, false)
+            ->groupBy('ptb.fk_patient_id, ph.id')
+            ->orderBy('ptb.eta', 'ASC')
+            ->get()->getResultArray();
+
+        // Group flat rows by phlebotomist
+        $schedule = [];
+        foreach ($rows as $row) {
+            $pid = $row['phleb_id'];
+            if (!isset($schedule[$pid])) {
+                $schedule[$pid] = [
+                    'phleb_id'   => $pid,
+                    'phleb_name' => $row['phleb_name'],
+                    'bookings'   => [],
+                ];
+            }
+            $schedule[$pid]['bookings'][] = [
+                'eta'          => $row['eta'],
+                'patient_name' => $row['patient_name'],
+                'status'       => $row['status'],
+            ];
+        }
+
+        return $this->response->setJSON([
+            'success'  => true,
+            'schedule' => array_values($schedule),
+        ]);
+    }
+
+    public function uploadProofAndMarkPaid($bookingId = null)
 {
-    // Validate token
-    if (!$token) {
-        return redirect()->to('/login')->with('error', 'Invalid share link');
+    if (!session()->get('logged_in')) {
+        return redirect()->to('/login')->with('error', 'Please login to perform this action');
     }
-    
-    // Check token in database
-    $shareModel = new ShareTokenModel();
-    $shareRecord = $shareModel->where('booking_id', $bookingId)
-                              ->where('token', $token)
-                              ->where('expires_at >', date('Y-m-d H:i:s'))
-                              ->first();
-    
-    if (!$shareRecord) {
-        return redirect()->to('/login')->with('error', 'Share link has expired or is invalid');
+
+    if (!$bookingId) {
+        return redirect()->back()->with('error', 'Invalid booking ID');
     }
-    
-    // Fetch booking data
+
+    $userId = session()->get('user_id') ?? session()->get('id');
+    $labId  = $this->getLabId();
+
+    $validation = \Config\Services::validation();
+    $validation->setRules([
+        'payment_method'      => 'required|in_list[cash,online,card]',
+        'payment_received_by' => 'required|in_list[main_branch,franchise]',
+        'proof_file'          => 'uploaded[proof_file]|max_size[proof_file,10240]|ext_in[proof_file,pdf,jpg,jpeg,png]',
+    ]);
+
+    if (!$validation->withRequest($this->request)->run()) {
+        return redirect()->back()->with('errors', $validation->getErrors());
+    }
+
     $db = \Config\Database::connect();
-    $patientModel = new PatientModel();
-    
+
+    $booking = $db->table('patient_test_bookings ptb')
+        ->select('ptb.*, lt.lab_id')
+        ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
+        ->where('ptb.id', $bookingId)
+        ->get()->getRowArray();
+
+    if (!$booking) {
+        return redirect()->back()->with('error', 'Booking not found.');
+    }
+
+    // Safety: this booking's test must belong to the logged-in lab
+    if ($labId && (int) $booking['lab_id'] !== (int) $labId) {
+        return redirect()->back()->with('error', 'Unauthorized.');
+    }
+
+    if (!in_array($booking['status'], ['Sample Collected', 'Report Ready'])) {
+        return redirect()->back()->with('error', 'Payment proof can only be uploaded after sample collection.');
+    }
+
+    $patientId = $booking['fk_patient_id'];
+
+    $file = $this->request->getFile('proof_file');
+    if (!$file->isValid()) {
+        return redirect()->back()->with('error', 'Please upload a valid file.');
+    }
+
+    $newName    = 'proof_' . $patientId . '_' . time() . '_' . uniqid() . '.' . $file->getExtension();
+    $uploadPath = WRITEPATH . 'uploads/payment_proofs/';
+
+    if (!is_dir($uploadPath)) {
+        mkdir($uploadPath, 0777, true);
+    }
+
+    if (!$file->move($uploadPath, $newName)) {
+        return redirect()->back()->with('error', 'Failed to upload file.');
+    }
+
+    $filePath = 'uploads/payment_proofs/' . $newName;
+
+    $db->transStart();
+
+    // 1. Save proof of payment on ALL rows for this patient
+    $db->table('patient_test_bookings')
+        ->where('fk_patient_id', $patientId)
+        ->update([
+            'payment_proof_file'                => $filePath,
+            'payment_method'                    => $this->request->getPost('payment_method'),
+            'payment_received_by'               => $this->request->getPost('payment_received_by'),
+            'payment_proof_uploaded_by_user_id' => $userId,
+            'payment_proof_uploaded_at'         => date('Y-m-d H:i:s'),
+            'date_updated'                      => date('Y-m-d H:i:s'),
+        ]);
+
+    // 2. Immediately mark all unpaid test rows for this patient as paid
+    $db->table('patient_test_bookings')
+        ->where('fk_patient_id', $patientId)
+        ->where('payment_status', 'unpaid')
+        ->update([
+            'payment_status' => 'paid',
+            'payment_date'   => date('Y-m-d H:i:s'),
+            'date_updated'   => date('Y-m-d H:i:s'),
+        ]);
+
+    $db->transComplete();
+
+    if ($db->transStatus() === false) {
+        return redirect()->back()->with('error', 'Failed to upload proof and update payment status.');
+    }
+
+    $this->logStatusHistory(
+        $bookingId,
+        $patientId,
+        $booking['status'],
+        'Proof of payment uploaded and payment marked as paid (received by '
+            . str_replace('_', ' ', $this->request->getPost('payment_received_by')) . ')'
+    );
+
+    return redirect()->to('/booking/view/' . $patientId)
+        ->with('success', 'Proof of payment uploaded and payment marked as paid successfully!');
+}
+
+public function trackingLink($bookingId = null)
+{
+    if (!$bookingId) {
+        return $this->response->setJSON(['success' => false, 'message' => 'Invalid booking ID']);
+    }
+
+    $db = \Config\Database::connect();
+
+    $booking = $db->table('patient_test_bookings')
+        ->where('id', $bookingId)
+        ->get()->getRowArray();
+
+    if (!$booking) {
+        return $this->response->setJSON(['success' => false, 'message' => 'Booking not found']);
+    }
+
+    $patient = $db->table('patients')
+        ->where('id', $booking['fk_patient_id'])
+        ->get()->getRowArray();
+
+    if (!$patient || empty($patient['phone_number'])) {
+        return $this->response->setJSON(['success' => false, 'message' => 'Patient phone not found']);
+    }
+
+    $locRow = $db->table('phlebotomist_locations')
+        ->where('booking_id', $booking['id'])
+        ->get()->getRowArray();
+
+    if (!$locRow || empty($locRow['token'])) {
+        return $this->response->setJSON(['success' => false, 'message' => 'Tracking token not found for this booking']);
+    }
+
+    $trackingUrl = base_url('t/' . $locRow['token']);
+    $message     = WhatsAppMessages::forTrackingLink($patient['patient_name'], $trackingUrl);
+
+    $digits = preg_replace('/\D/', '', $patient['phone_number'] ?? '');
+    if (str_starts_with($digits, '0')) {
+        $digits = substr($digits, 1);
+    }
+    if (!str_starts_with($digits, '92')) {
+        $digits = '92' . $digits;
+    }
+
+    $waUrl = 'https://wa.me/' . $digits . '?text=' . rawurlencode($message);
+
+    return $this->response->setJSON(['success' => true, 'wa_url' => $waUrl]);
+}
+
+// delete report
+public function deleteReport($bookingId = null)
+{
+    if (!session()->get('logged_in')) {
+        return redirect()->to('/login')->with('error', 'Please login to perform this action');
+    }
+
+    if (!$bookingId) {
+        return redirect()->back()->with('error', 'Invalid booking ID');
+    }
+
+    $db = \Config\Database::connect();
+
+    // This is a row in patient_test_bookings (one row per test), same as downloadReport() uses
     $booking = $db->table('patient_test_bookings')
         ->where('id', $bookingId)
         ->get()
         ->getRowArray();
-    
+
     if (!$booking) {
-        return redirect()->to('/login')->with('error', 'Invoice not found');
+        return redirect()->back()->with('error', 'Booking not found');
     }
-    
-    $patient = $patientModel->find($booking['fk_patient_id']);
-    
-    // Get ALL tests for this patient on the same date with lab details
-    // Join labs table to get user_id, then join users table to get lab name
-    $tests = $db->table('patient_test_bookings ptb')
-        ->select('
-            ptb.*,
-            lt.test_name,
-            lt.test_code,
-            lt.rate as rack_rate,
-            lt.reporting_time,
-            u.name as lab_name,
-            l.address as lab_address,
-            l.phone as lab_phone,
-            (lt.rate * ptb.discount_percent / 100) as discount_amt,
-            (lt.rate - (lt.rate * ptb.discount_percent / 100)) as patient_price
-        ')
-        ->join('lab_tests lt', 'lt.id = ptb.fk_test_id', 'left')
-        ->join('labs l', 'l.id = lt.lab_id', 'left')
-        ->join('users u', 'u.id = l.user_id', 'left')  // Join users table to get lab name
-        ->where('ptb.fk_patient_id', $booking['fk_patient_id'])
-        ->where('DATE(ptb.date_created)', date('Y-m-d', strtotime($booking['date_created'])))
-        ->get()
-        ->getResultArray();
-    
-    $originalTotal = 0;
-    $discountTotal = 0;
-    $patientPays = 0;
-    $labName = '';
-    $labAddress = '';
-    $labPhone = '';
-    
-    foreach ($tests as $test) {
-        $originalTotal += (float)($test['rack_rate'] ?? 0);
-        $discountTotal += (float)($test['discount_amt'] ?? 0);
-        $patientPays += (float)($test['patient_price'] ?? 0);
-        if (empty($labName) && !empty($test['lab_name'])) {
-            $labName = $test['lab_name'];
-            $labAddress = $test['lab_address'] ?? '';
-            $labPhone = $test['lab_phone'] ?? '';
+
+    $patientId = $booking['fk_patient_id'];
+    $testId    = $booking['fk_test_id'];
+
+    $reportModel = new \App\Models\LabReportModel();
+
+    // Reports are keyed by patient + test, exactly like downloadReport() looks them up
+    $report = $reportModel
+        ->where('fk_patient_id', $patientId)
+        ->where('fk_test_id', $testId)
+        ->orderBy('uploaded_at', 'DESC')
+        ->first();
+
+    if (!$report) {
+        return redirect()->back()->with('error', 'No report found for this test.');
+    }
+
+    // Delete the physical PDF (report_file is stored as 'uploads/reports/xxx.pdf')
+    if (!empty($report['report_file'])) {
+        $filePath = WRITEPATH . $report['report_file'];
+        if (is_file($filePath)) {
+            unlink($filePath);
         }
     }
-    
-    // Increment view count
-    $shareModel->update($shareRecord['id'], [
-        'view_count' => ($shareRecord['view_count'] ?? 0) + 1
-    ]);
-    
-    $data = [
-        'booking' => $booking,
-        'patient' => $patient,
-        'tests' => $tests,
-        'labName' => $labName,
-        'labAddress' => $labAddress,
-        'labPhone' => $labPhone,
-        'originalTotal' => $originalTotal,
-        'discountTotal' => $discountTotal,
-        'patientPays' => $patientPays,
-        'invoiceNumber' => 'INV-' . str_pad($booking['fk_patient_id'], 6, '0', STR_PAD_LEFT) . '-' . date('Ymd', strtotime($booking['date_created'])),
-        'issuedDate' => date('d M Y', strtotime($booking['date_created'])),
-        'isShared' => true,
-        'shareToken' => $token
-    ];
-    
-    return view('labDashboard/invoice', $data);
-}
 
+    // Remove the report record so has_report becomes false again for this test
+    $reportModel->delete($report['id']);
+
+    // If the patient's overall status was "Report Ready", revert to "Sample Collected"
+    // since this test no longer has a report attached.
+    if ($booking['status'] === 'Report Ready') {
+        $db->table('patient_test_bookings')
+            ->where('fk_patient_id', $patientId)
+            ->update([
+                'status'       => 'Sample Collected',
+                'date_updated' => date('Y-m-d H:i:s'),
+            ]);
+
+        $this->logStatusHistory(
+            $bookingId,
+            $patientId,
+            'Sample Collected',
+            'Report deleted for one test — status reverted from Report Ready'
+        );
+    }
+
+    return redirect()->to('/booking/view/' . $patientId)
+        ->with('success', 'Report deleted. You can now upload a new one for this test.');
+}
 
 }

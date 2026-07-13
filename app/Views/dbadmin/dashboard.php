@@ -22,8 +22,18 @@
       $db        = \Config\Database::connect();
       $labCount  = $db->table('labs')->countAllResults();
       $testCount = $db->table('lab_tests')->countAllResults();
-      $phleCount = $db->table('phlebotomists')->countAllResults();
-    ?>
+      $phleCount = $db->table('phlebotomists ph')
+      ->join('franchises f', 'f.id = ph.franchise_id', 'left')
+      ->where('ph.status', 'active')        
+      ->groupStart()
+          ->where('ph.franchise_id', null)     
+          ->orGroupStart()
+              ->where('f.is_deleted', 0)       
+              ->where('f.status', 'active')    
+          ->groupEnd()
+      ->groupEnd()
+      ->countAllResults();
+      ?>
 
     <div class="row g-4 mb-5">
 
@@ -66,7 +76,7 @@
             </div>
             <div>
               <div class="fw-bold" style="font-size:28px; color:#2463c2;"><?= $phleCount ?></div>
-              <div style="color:#6b7280; font-size:14px;">Phlebotomists</div>
+              <div style="color:#6b7280; font-size:14px;">Active Phlebotomists</div>
             </div>
           </div>
         </div>
@@ -74,50 +84,88 @@
 
     </div>
 
-    <!-- Quick Actions -->
-    <?php if (session()->get('user_role') === 'admin'): ?>
-    <div class="row g-4">
+<!-- Quick Actions -->
+<?php if (session()->get('user_role') === 'admin'): ?>
+<div class="row g-4">
 
-      <div class="col-md-6">
-        <a href="<?= base_url('lablist') ?>" class="text-decoration-none">
-          <div class="card11 border-0 shadow-sm rounded-4 p-4 h-100"
-               style="border-left: 4px solid #1a3a6b !important;">
-            <div class="d-flex align-items-center gap-3">
-              <div class="rounded-3 d-flex align-items-center justify-content-center"
-                   style="width:50px; height:50px; background:#eef2f7; min-width:50px;">
-                <i class="ti ti-list" style="font-size:22px; color:#1a3a6b;"></i>
-              </div>
-              <div>
-                <div class="fw-semibold" style="color:#1a3a6b; font-size:16px;">View Lab List</div>
-                <div style="color:#6bfff7280; font-size:13px;">Manage registered labs, price lists & phlebotomists</div>
-              </div>
-              <i class="ti ti-chevron-right ms-auto" style="color:#1a3a6b;"></i>
-            </div>
+  <div class="col-md-6">
+    <a href="<?= base_url('lablist') ?>" class="text-decoration-none">
+      <div class="card11 border-0 shadow-sm rounded-4 p-4 h-100"
+           style="border-left: 4px solid #1a3a6b !important;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 d-flex align-items-center justify-content-center"
+               style="width:50px; height:50px; background:#eef2f7; min-width:50px;">
+            <i class="ti ti-list" style="font-size:22px; color:#1a3a6b;"></i>
           </div>
-        </a>
-      </div>
-
-      <div class="col-md-6">
-        <a href="<?= base_url('registerform') ?>" class="text-decoration-none">
-          <div class="card1 border-0 shadow-sm rounded-4 p-4 h-100"
-               style="border-left: 4px solid #c9140e !important;">
-            <div class="d-flex align-items-center gap-3">
-              <div class="rounded-3 d-flex align-items-center justify-content-center"
-                   style="width:50px; height:50px; background:#fdeaea; min-width:50px;">
-                <i class="ti ti-plus" style="font-size:22px; color:#c9140e;"></i>
-              </div>
-              <div>
-                <div class="fw-semibold" style="color:#c9140e; font-size:16px;">Register New Lab</div>
-                <div style="color:#6b7280; font-size:13px;">Add a new lab partner to the system</div>
-              </div>
-              <i class="ti ti-chevron-right ms-auto" style="color:#c9140e;"></i>
-            </div>
+          <div>
+            <div class="fw-semibold" style="color:#1a3a6b; font-size:16px;">View Lab List</div>
+            <div style="color:#6b7280; font-size:13px;">Manage registered labs and price lists</div>
           </div>
-        </a>
+          <i class="ti ti-chevron-right ms-auto" style="color:#1a3a6b;"></i>
+        </div>
       </div>
+    </a>
+  </div>
 
-    </div>
-    <?php endif; ?>
+  <div class="col-md-6">
+    <a href="<?= base_url('registerform') ?>" class="text-decoration-none">
+      <div class="card1 border-0 shadow-sm rounded-4 p-4 h-100"
+           style="border-left: 4px solid #c9140e !important;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 d-flex align-items-center justify-content-center"
+               style="width:50px; height:50px; background:#fdeaea; min-width:50px;">
+            <i class="ti ti-plus" style="font-size:22px; color:#c9140e;"></i>
+          </div>
+          <div>
+            <div class="fw-semibold" style="color:#c9140e; font-size:16px;">Register New Lab</div>
+            <div style="color:#6b7280; font-size:13px;">Add a new lab partner to the system</div>
+          </div>
+          <i class="ti ti-chevron-right ms-auto" style="color:#c9140e;"></i>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-6">
+    <a href="<?= base_url('franchiselist') ?>" class="text-decoration-none">
+      <div class="card11 border-0 shadow-sm rounded-4 p-4 h-100"
+           style="border-left: 4px solid #2463c2 !important;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 d-flex align-items-center justify-content-center"
+               style="width:50px; height:50px; background:#e8f0fb; min-width:50px;">
+            <i class="ti ti-building-store" style="font-size:22px; color:#2463c2;"></i>
+          </div>
+          <div>
+            <div class="fw-semibold" style="color:#2463c2; font-size:16px;">View Franchise List</div>
+            <div style="color:#6b7280; font-size:13px;">Manage registered franchises and phlebotomists</div>
+          </div>
+          <i class="ti ti-chevron-right ms-auto" style="color:#2463c2;"></i>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-6">
+    <a href="<?= base_url('franchise/create') ?>" class="text-decoration-none">
+      <div class="card1 border-0 shadow-sm rounded-4 p-4 h-100"
+           style="border-left: 4px solid #0c7a43 !important;">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 d-flex align-items-center justify-content-center"
+               style="width:50px; height:50px; background:#e8f8ee; min-width:50px;">
+            <i class="ti ti-plus" style="font-size:22px; color:#0c7a43;"></i>
+          </div>
+          <div>
+            <div class="fw-semibold" style="color:#0c7a43; font-size:16px;">Register New Franchise</div>
+            <div style="color:#6b7280; font-size:13px;">Add a new franchise to a lab partner</div>
+          </div>
+          <i class="ti ti-chevron-right ms-auto" style="color:#0c7a43;"></i>
+        </div>
+      </div>
+    </a>
+  </div>
+
+</div>
+<?php endif; ?>
 
   </div>
 </div>

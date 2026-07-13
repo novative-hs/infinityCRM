@@ -34,4 +34,5 @@ class LABTestModel extends Model
 
     return $this->where('lab_id', $lab['id'])->findAll();
 }
+
 }

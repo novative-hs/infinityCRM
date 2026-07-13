@@ -630,47 +630,54 @@ async function shareInvoice() {
 
     try {
 
+        const csrfName = document.querySelector('meta[name="csrf-token-name"]').content;
+        const csrfHash = document.querySelector('meta[name="csrf-token-hash"]').content;
+
+        const body = new URLSearchParams();
+        body.append(csrfName, csrfHash);
+
         const response = await fetch(
             '<?= base_url("booking/generateShareLink/".$booking["id"]) ?>',
             {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: body
             }
         );
 
         const data = await response.json();
 
+        // Agar token rotate ho ke naya aaya ho (regenerate true ho), meta update kar dein
+        const newHash = response.headers.get('X-CSRF-TOKEN');
+        if (newHash) {
+            document.querySelector('meta[name="csrf-token-hash"]').content = newHash;
+        }
+
         if (!data.success) {
-            alert('Unable to generate share link');
+            alert(data.message || 'Unable to generate share link');
             return;
         }
 
         const shareUrl = data.share_url;
 
-        // Native Share Popup
         if (navigator.share) {
-
             await navigator.share({
                 title: 'Invoice #<?= esc($invoiceNumber) ?>',
                 text: 'View your invoice online',
                 url: shareUrl
             });
-
         } else {
-
-            // Fallback for unsupported browsers
             await navigator.clipboard.writeText(shareUrl);
             alert('Share not supported. Link copied to clipboard.');
-
         }
 
     } catch (error) {
-
         console.error(error);
         alert('Something went wrong');
-
     }
 }
-
 
 window.onclick = function(event){
 

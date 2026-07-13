@@ -28,11 +28,21 @@ class CreatePatientTestsBookingTable extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
+             'fk_franchise_id' => [
+                // References tests.id (the tests table already exists).
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'phleb_id' => [
                 // References tests.id (the tests table already exists).
                 'type'       => 'INT',
                 'constraint' => 11,
                 'unsigned'   => true,
+            ],
+            'booking_person_name' => [
+                'type' => 'VARCHAR',
+                'constraint' => 255,
             ],
             'status' => [
                 // Matches the status pills used on the Lab Partner Dashboard.
@@ -51,6 +61,10 @@ class CreatePatientTestsBookingTable extends Migration
                 'type' => 'DATETIME',
                 'null' => true,
             ],
+            'preferred_eta' => [
+                'type' => 'DATETIME',
+                'null' => true,
+            ],
             'discount_percent' => [
                 'type'       => 'INT',
                 'constraint' => '11',
@@ -58,8 +72,8 @@ class CreatePatientTestsBookingTable extends Migration
             ],
             'payment_method' => [
                 'type'       => 'ENUM',
-                'constraint' => ['cash', 'prepaid'],
-                'default'    => 'prepaid',
+                'constraint' => ['cash', 'online','card'],
+                'default'    => 'cash',
             ],
              'payment_status' => [
                 'type'       => 'ENUM',
@@ -69,6 +83,30 @@ class CreatePatientTestsBookingTable extends Migration
              'payment_date' => [
                 'type' => 'DATETIME',
                 'null' => true,
+            ],
+            'payment_proof_file' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 255,
+                'null'       => true,
+            ],
+            'payment_received_by' => [
+                'type'       => 'ENUM',
+                'constraint' => ['main_branch', 'franchise'],
+                'null'       => true,
+            ],
+            'payment_proof_uploaded_by_user_id' => [
+                'type'       => 'INT',
+                'constraint' => 10,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
+            'payment_proof_uploaded_at' => [
+                'type' => 'DATETIME',
+                'null' => true,
+            ],
+           'reporting_time' => [
+                'type'    => 'BOOLEAN',
+                'default' => false,
             ],
             'date_created' => [
                 'type' => 'DATETIME',
@@ -83,6 +121,7 @@ class CreatePatientTestsBookingTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('fk_patient_id');
         $this->forge->addKey('fk_test_id');
+        //$this->forge->addKey('fk_frenchise_id');
         $this->forge->addKey('phleb_id');
         
 
@@ -90,7 +129,7 @@ class CreatePatientTestsBookingTable extends Migration
         // onUpdate CASCADE keeps things in sync if a test's id ever changes;
         // onDelete RESTRICT stops a test from being deleted while it's
         // still referenced by a booking, protecting historical records.
-        $this->forge->addForeignKey('fk_lab_id', 'lab_tests', 'id', 'CASCADE', 'RESTRICT');
+        $this->forge->addForeignKey('fk_test_id', 'lab_tests', 'id', 'CASCADE', 'RESTRICT');
 
         // Uncomment once a patients table exists, adjusting the table/column
         // names below if yours differ.

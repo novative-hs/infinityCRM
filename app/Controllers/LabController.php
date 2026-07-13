@@ -3,11 +3,12 @@
 namespace App\Controllers;
 
 use App\Models\LabModel;
+use App\Models\CityModel;
 
 class LabController extends BaseController
 {
 
-    public function index()
+public function index()
 {
     if (!session()->get('logged_in')) {
         return redirect()->to('/login');
@@ -16,6 +17,7 @@ class LabController extends BaseController
     $labModel = new LabModel();
     $labs = $labModel->select('labs.*, users.name, users.email, users.status, users.password_hint')
                      ->join('users', 'users.id = labs.user_id')
+                     ->orderBy('labs.id', 'DESC')
                      ->findAll();
 
     $db = \Config\Database::connect();
@@ -94,6 +96,13 @@ public function priceList($labId)
             if (!empty($data)) {
                 $db->table('lab_tests')->insertBatch($data);
             }
+
+               (new \App\Models\ActivityLogModel())->record(
+                    'lab',
+                    $labId,
+                    'price_list_imported',
+                    count($data) . ' tests imported via Excel (previous price list replaced)'
+                );
 
             return redirect()->to(base_url('labs/' . $labId . '/pricelist'))
                              ->with('success', count($data) . ' tests imported successfully.');
@@ -174,6 +183,13 @@ public function updatePriceList($labId)
             }
         }
 
+             (new \App\Models\ActivityLogModel())->record(
+                'lab',
+                $labId,
+                'price_list_updated',
+                "{$updated} tests updated, {$inserted} new tests added via Excel"
+            );
+
         return redirect()->to(base_url('labs/' . $labId . '/pricelist'))
                          ->with('success', "$updated tests updated, $inserted new tests added.");
 
@@ -213,23 +229,26 @@ public function update($labId)
         return redirect()->to('/lablist')->with('error', 'Lab not found.');
     }
 
-    // Update users table
+    $currentUser = $db->table('users')->where('id', $lab['user_id'])->get()->getRowArray();
+    $oldStatus   = $currentUser['status'] ?? null;
+    $newStatus   = $this->request->getPost('status');
+
     $db->table('users')->where('id', $lab['user_id'])->update([
         'name'   => $this->request->getPost('name'),
         'email'  => $this->request->getPost('email'),
-        'status' => $this->request->getPost('status'),
+        'status' => $newStatus,
     ]);
 
-    // Update password only if provided
+    $passwordChanged = false;
     $password = $this->request->getPost('password');
     if (!empty($password)) {
         $db->table('users')->where('id', $lab['user_id'])->update([
             'password'      => password_hash($password, PASSWORD_DEFAULT),
             'password_hint' => $password,
         ]);
+        $passwordChanged = true;
     }
 
-    // Update labs table
     $labModel->update($labId, [
         'contact_person' => $this->request->getPost('contact_person'),
         'phone'          => $this->request->getPost('phone'),
@@ -237,42 +256,60 @@ public function update($labId)
         'address'        => $this->request->getPost('address'),
     ]);
 
+    $logModel = new \App\Models\ActivityLogModel();
+    $desc = "Lab details updated (name, email, contact person, phone, license, address)";
+    if ($passwordChanged) {
+        $desc .= " · password changed";
+    }
+    $logModel->record('lab', $labId, 'updated', $desc);
+
+    if ($oldStatus && $oldStatus !== $newStatus) {
+        $logModel->record(
+            'lab',
+            $labId,
+            $newStatus === 'active' ? 'activated' : 'deactivated',
+            "Status changed from {$oldStatus} to {$newStatus}"
+        );
+    }
+
     return redirect()->to('/lablist')->with('success', 'Lab updated successfully.');
 }
+
 public function phlebotomist($labId)
 {
-    if (!session()->get('logged_in')) {
-        return redirect()->to('/login');
-    }
+    if (!session()->get('logged_in')) return redirect()->to('/login');
 
     $labModel = new LabModel();
     $lab = $labModel->select('labs.*, users.name, users.email')
                     ->join('users', 'users.id = labs.user_id')
                     ->find($labId);
 
-    if (!$lab) {
-        return redirect()->to('/lablist')->with('error', 'Lab not found.');
-    }
+    if (!$lab) return redirect()->to('/lablist')->with('error', 'Lab not found.');
 
-    $db            = \Config\Database::connect();
-    $phlebotomists = $db->table('phlebotomists')
-                        ->where('lab_id', $labId)
+    $db = \Config\Database::connect();
+
+    $phlebotomists = $db->table('phlebotomists p')
+                        ->select('p.*, c.name as city_name')
+                        ->join('cities c', 'c.id = p.fk_city_id', 'left')
+                        ->where('p.lab_id', $labId)
                         ->get()->getResultArray();
 
+    $cityModel = new CityModel();
+
     return view('dbadmin/phlebotomist', [
-        'lab'            => $lab,
-        'phlebotomists'  => $phlebotomists,
-        'count'          => count($phlebotomists),
+        'lab'           => $lab,
+        'phlebotomists' => $phlebotomists,
+        'count'         => count($phlebotomists),
+        'cities'        => $cityModel->orderBy('name', 'ASC')->findAll(),
     ]);
 }
+
 public function addPhlebotomist($labId)
 {
-    if (!session()->get('logged_in')) {
-        return redirect()->to('/login');
-    }
+    if (!session()->get('logged_in')) return redirect()->to('/login');
 
-    $name = $this->request->getPost('name');
-    $city = $this->request->getPost('city');
+    $name      = $this->request->getPost('name');
+    $cityId    = $this->request->getPost('fk_city_id');
 
     if (empty($name)) {
         return redirect()->back()->with('error', 'Name is required.');
@@ -282,7 +319,7 @@ public function addPhlebotomist($labId)
     $db->table('phlebotomists')->insert([
         'lab_id'     => $labId,
         'name'       => $name,
-        'city'       => $city,
+        'fk_city_id' => $cityId ?: null,
         'status'     => 'active',
         'created_at' => date('Y-m-d H:i:s'),
     ]);
@@ -290,11 +327,10 @@ public function addPhlebotomist($labId)
     return redirect()->to(base_url('labs/' . $labId . '/phlebotomist'))
                      ->with('success', 'Phlebotomist added successfully.');
 }
+
 public function importPhlebotomist($labId)
 {
-    if (!session()->get('logged_in')) {
-        return redirect()->to('/login');
-    }
+    if (!session()->get('logged_in')) return redirect()->to('/login');
 
     $file = $this->request->getFile('excel_file');
 
@@ -309,21 +345,30 @@ public function importPhlebotomist($labId)
 
     try {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getTempName());
-        $sheet       = $spreadsheet->getActiveSheet();
-        $rows        = $sheet->toArray();
-
+        $rows        = $spreadsheet->getActiveSheet()->toArray();
         array_shift($rows); // skip header
 
         $db = \Config\Database::connect();
+
+        $citiesMap = [];
+        $allCities = $db->table('cities')->get()->getResultArray();
+        foreach ($allCities as $c) {
+            $citiesMap[strtolower(trim($c['name']))] = $c['id'];
+        }
+
         $db->table('phlebotomists')->where('lab_id', $labId)->delete();
 
         $data = [];
         foreach ($rows as $row) {
             if (empty($row[0])) continue;
+
+            $cityName = strtolower(trim($row[1] ?? ''));
+            $cityId   = $citiesMap[$cityName] ?? null;
+
             $data[] = [
                 'lab_id'     => $labId,
-                'name'       => $row[0] ?? '',
-                'city'       => $row[1] ?? '',
+                'name'       => $row[0],
+                'fk_city_id' => $cityId,
                 'status'     => 'active',
                 'created_at' => date('Y-m-d H:i:s'),
             ];
@@ -340,13 +385,13 @@ public function importPhlebotomist($labId)
         return redirect()->back()->with('error', 'Failed to read file: ' . $e->getMessage());
     }
 }
+
 public function labPriceList()
 {
     if (!session()->get('logged_in')) {
         return redirect()->to('/login');
     }
 
-    // Session se lab user ka user_id lo
     $userId = session()->get('user_id');
 
     $db  = \Config\Database::connect();
@@ -366,5 +411,15 @@ public function labPriceList()
         'lab'   => $lab,
         'tests' => $tests,
     ]);
+}
+
+public function history($labId)
+{
+    if (!session()->get('logged_in')) {
+        return $this->response->setStatusCode(401)->setJSON(['error' => 'Unauthorized']);
+    }
+
+    $logs = (new \App\Models\ActivityLogModel())->getHistory('lab', $labId);
+    return $this->response->setJSON(['logs' => $logs]);
 }
 }

@@ -118,7 +118,7 @@ class UserController extends BaseController
     }
 
     // ─── DASHBOARD: Save new lab partner (users + labs) ──────────
-    public function registerLab()
+public function registerLab()
 {
     if (!session()->get('logged_in')) {
         return redirect()->to('/login');
@@ -156,7 +156,7 @@ class UserController extends BaseController
     $userModel->createUser($userData);
     $userId = $db->insertID();
 
-    $labModel->createLab([
+    $labId = $labModel->createLab([
         'user_id'        => $userId,
         'contact_person' => $this->request->getPost('contact_person'),
         'phone'          => $this->request->getPost('phone'),
@@ -171,6 +171,13 @@ class UserController extends BaseController
                          ->withInput()
                          ->with('errors', ['Something went wrong. Please try again.']);
     }
+
+    (new \App\Models\ActivityLogModel())->record(
+        'lab',
+        $labId,
+        'registered',
+        "Lab '{$userData['name']}' registered with email {$userData['email']}"
+    );
 
     return redirect()->to('/registerform')
                      ->with('success', 'Lab registered successfully.');

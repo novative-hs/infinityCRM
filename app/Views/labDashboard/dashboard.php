@@ -74,19 +74,29 @@
             value="<?= esc($filters['date_to'] ?? '') ?>"
             onchange="this.form.submit()" />
         </div>
-
-        <div class="search-wrap">
-          <span class="search-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-          <input type="text" name="search" class="search-input" id="searchInput"
-            placeholder="Search patient, phone…"
-            value="<?= esc($filters['search'] ?? '') ?>"
-            oninput="debounceSubmit()" />
-        </div>
+ <div class="franchise-group">
+        <select name="franchise_id" class="form-select" id="franchiseFilter" onchange="this.form.submit()">
+          <option value="">All Franchises</option>
+          <?php foreach ($franchises ?? [] as $f): ?>
+            <option value="<?= $f['id'] ?>" <?= ($filters['franchise_id'] ?? '') == $f['id'] ? 'selected' : '' ?>>
+              <?= esc($f['name']) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+       <div class="search-wrap" style="position:relative; display:flex; align-items:center;">
+  <span class="search-icon" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); display:flex; align-items:center; color:#9ca3af; pointer-events:none;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  </span>
+  <input type="text" name="search" class="search-input" id="searchInput"
+    placeholder="Search patient, phone…"
+    value="<?= esc($filters['search'] ?? '') ?>"
+    oninput="debounceSubmit()"
+    style="padding-left:34px;" />
+</div>
 
         <div class="pills-group">
           <?php
@@ -147,8 +157,8 @@
             $testNames = implode(', ', array_column($tests, 'test_name'));
             $etaTs     = strtotime($b['eta'] ?? '');
             $etaRed    = $etaTs && $etaTs < time();
-            $etaLabel  = $etaTs ? date('M d, Y g:i A', $etaTs) : '—';
-            $dateLabel = date('M d, g:i A', strtotime($b['date_created']));
+            $etaLabel  = $etaTs ? date('d-M-y, g:i A', $etaTs) : '—';
+            $dateLabel = date('d-M-y, g:i A', strtotime($b['date_created']));
           ?>
             <tr>
               <td>
@@ -186,17 +196,37 @@
                 <div class="date-val"><?= esc($dateLabel) ?></div>
               </td>
               <td>
-                <a href="<?= base_url('booking/view/' . $b['fk_patient_id']) ?>" class="btn-view">
-                  View &amp; Update
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                  </svg>
-                </a>
+               
+  <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+    <a href="<?= base_url('booking/view/' . $b['fk_patient_id']) ?>" class="btn-view">
+      View &amp; Update
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <polyline points="12 5 19 12 12 19" />
+      </svg>
+    </a>
+
+    <?php if ($b['status'] === 'Phlebotomist Assigned'): ?>
+      <button type="button" class="btn-view" style="background:#0891b2; border-color:#0891b2; color:#fff; border-radius:10px;"
+    onclick="openLiveLocationPopup(<?= (int) ($b['id'] ?? $b['booking_id'] ?? 0) ?>)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+    Enter Live Location
+  </button>
+    <?php endif; ?>
+  </div>
+
               </td>
             </tr>
           <?php endforeach; ?>
         <?php endif; ?>
+       <dialog id="liveLocationDialog" style="padding:0; border:none; border-radius:16px; width:480px; max-width:95%; height:760px; max-height:95vh; overflow:hidden;">
+  <button type="button" onclick="document.getElementById('liveLocationDialog').close()"
+    style="position:absolute; top:8px; right:12px; border:none; background:#134557; color:#fff; width:28px; height:28px; border-radius:50%; font-size:16px; cursor:pointer; z-index:2;">&times;</button>
+  <iframe id="liveLocationFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+</dialog>
       </tbody>
     </table>
   </div>
@@ -226,5 +256,30 @@
       document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
       e.currentTarget.classList.add('active');
     }
+
+    //live location popup
+// function openLiveLocationPopup(bookingId) {
+//   if (!bookingId) return;
+//   const url = `<?= base_url('phlebotomist.html') ?>?booking_id=${bookingId}`;
+//   const w = 480, h = 760;
+//   const left = (window.screen.width  - w) / 2;
+//   const top  = (window.screen.height - h) / 2;
+//   window.open(
+//     url,
+//     'liveLocationPopup',
+//     `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
+//   );
+// }
+function openLiveLocationPopup(bookingId) {
+  if (!bookingId) return;
+  const url = `<?= base_url('phlebotomist.html') ?>?booking_id=${bookingId}`;
+  document.getElementById('liveLocationFrame').src = url;
+  document.getElementById('liveLocationDialog').showModal();
+}
+const urlParams = new URLSearchParams(window.location.search);
+const prefillBookingId = urlParams.get('booking_id');
+// if (prefillBookingId) {
+//   bookingInput.value = prefillBookingId;
+// }
   </script>
   <?= view('templates/footer') ?>

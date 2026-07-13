@@ -25,7 +25,7 @@
            style="width:56px; height:56px; background:#fff;">
         <i class="ti ti-flask text-danger fs-3"></i>
       </div>
-      <span class="fs-4 fw-bold" style="color:#fff;">Infinity +</span>
+      <span class="fs-4 fw-bold" style="color:#fff;">Infinity Healthcare</span>
       <small class="mt-1" style="color:#fff;">Lab Registration Form</small>
     </div>
 
@@ -59,7 +59,7 @@
             <label class="form-label1 fw-medium">Lab Name</label>
             <div class="input-group">
               <span class="input-group-text input-group-text-light"><i class="ti ti-flask"></i></span>
-              <input type="text" name="name" class="form-control input-light"
+              <input type="text" name="name" id="lab_name" class="form-control input-light"
                      placeholder="City Diagnostics Lab" value="<?= old('name') ?>" required/>
             </div>
           </div>
@@ -181,6 +181,22 @@
 </div>
 
 <script>
+  const nameField = document.getElementById('lab_name');
+
+nameField.addEventListener('input', function () {
+  const cursorPos = this.selectionStart;
+  const val = this.value;
+
+  // Capitalize the first letter after the start of the string AND after every space
+  const fixed = val.replace(/(^|\s)([a-zA-Z])/g, (match, boundary, letter) =>
+    boundary + letter.toUpperCase()
+  );
+
+  if (fixed !== val) {
+    this.value = fixed;
+    this.setSelectionRange(cursorPos, cursorPos); // preserve cursor position
+  }
+});
   function togglePw(inputId, iconId) {
     const inp  = document.getElementById(inputId);
     const icon = document.getElementById(iconId);
@@ -267,4 +283,3 @@
 
 <?= view('templates/footer') ?>
 </html>
-

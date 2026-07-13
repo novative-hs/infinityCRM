@@ -42,6 +42,10 @@ class CreatePatientsTable extends Migration
                 'type' => 'TEXT',
                 'null' => true,
             ],
+            'medical_history' => [
+                'type' => 'TEXT',
+                'null' => true,
+            ],
             'created_at' => [
                 'type' => 'DATETIME',
                 'null' => true,
